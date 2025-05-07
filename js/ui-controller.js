@@ -282,6 +282,23 @@ const UIController = (function() {
         return messageElement;
     }
 
+    // Add status bar control methods
+    function showStatus(message) {
+        const bar = document.getElementById('status-bar');
+        if (bar) {
+            bar.textContent = message;
+            bar.style.visibility = 'visible';
+        }
+    }
+
+    function clearStatus() {
+        const bar = document.getElementById('status-bar');
+        if (bar) {
+            bar.textContent = '';
+            bar.style.visibility = 'hidden';
+        }
+    }
+
     // Public API
     return {
         init,
@@ -291,6 +308,8 @@ const UIController = (function() {
         updateMessageContent,
         getUserInput,
         clearUserInput,
-        createEmptyAIMessage
+        createEmptyAIMessage,
+        showStatus,
+        clearStatus
     };
 })(); 

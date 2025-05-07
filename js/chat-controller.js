@@ -224,6 +224,11 @@ Answer: [your final, concise answer based on the reasoning above]`;
         const message = UIController.getUserInput();
         if (!message) return;
         
+        // Show status and disable inputs while awaiting AI
+        UIController.showStatus('Sending message...');
+        document.getElementById('message-input').disabled = true;
+        document.getElementById('send-button').disabled = true;
+        
         // Reset the partial response tracking
         lastThinkingContent = '';
         lastAnswerContent = '';
@@ -258,6 +263,10 @@ Answer: [your final, concise answer based on the reasoning above]`;
         } finally {
             // Update token usage display
             Utils.updateTokenDisplay(totalTokens);
+            // Clear status and re-enable inputs
+            UIController.clearStatus();
+            document.getElementById('message-input').disabled = false;
+            document.getElementById('send-button').disabled = false;
         }
     }
 
@@ -268,6 +277,8 @@ Answer: [your final, concise answer based on the reasoning above]`;
      */
     async function handleOpenAIMessage(model, message) {
         if (settings.streaming) {
+            // Show status for streaming response
+            UIController.showStatus('Streaming response...');
             // Streaming approach
             const aiMsgElement = UIController.createEmptyAIMessage();
             let streamedResponse = '';
@@ -346,6 +357,8 @@ Answer: [your final, concise answer based on the reasoning above]`;
                 isThinking = false;
             }
         } else {
+            // Show status for non-streaming response
+            UIController.showStatus('Waiting for AI response...');
             // Non-streaming approach
             try {
                 const result = await ApiService.sendOpenAIRequest(model, chatHistory);

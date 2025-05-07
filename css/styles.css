@@ -430,4 +430,24 @@ html, body {
         margin-bottom: var(--space-sm);
         width: 100%;
     }
+}
+
+/* Status Bar for AI status messages */
+.chat-app__status-bar {
+    position: fixed;
+    bottom: 80px; /* place above the controls */
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: var(--max-width);
+    background: var(--container-bg);
+    padding: var(--space-sm) var(--space-md);
+    box-sizing: border-box;
+    text-align: center;
+    font-size: var(--font-sm);
+    color: var(--text-light-color);
+    border-top: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
+    z-index: 1000;
+    visibility: hidden;
 } 
