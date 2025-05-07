@@ -366,11 +366,15 @@ Answer: [your final, concise answer based on the reasoning above]`;
                     console.log(`Function call requested: ${fname}`, args);
                     let functionResult;
                     if (fname === 'webSearch' && args.query) {
-                        // Perform search and enrich with content+source
+                        // Update status: searching web
+                        UIController.updateStatus(aiMsgElement, '🔍 Searching web...');
                         functionResult = await ApiService.webSearch(args.query);
+                        // Update status: fetching content for results
+                        UIController.updateStatus(aiMsgElement, '📥 Fetching content...');
                         for (let i = 0; i < Math.min(3, functionResult.length); i++) {
                             const entry = functionResult[i];
                             try {
+                                UIController.updateStatus(aiMsgElement, `📥 Fetching (${i+1}/${Math.min(3, functionResult.length)})`);
                                 const { content, source } = await ApiService.fetchUrlContent(entry.url);
                                 entry.content = content.length > 2000 ? content.slice(0, 2000) + '...' : content;
                                 entry.source = source;
@@ -379,6 +383,8 @@ Answer: [your final, concise answer based on the reasoning above]`;
                                 entry.source = 'error';
                             }
                         }
+                        // After fetching content, reset status to thinking
+                        UIController.updateStatus(aiMsgElement, '🤔 Thinking...');
                     } else {
                         throw new Error(`Unknown function call: ${fname}`);
                     }

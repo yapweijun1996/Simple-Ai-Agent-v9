@@ -310,6 +310,19 @@ const UIController = (function() {
         });
     }
 
+    /**
+     * Updates the thinking placeholder with a custom status text
+     * @param {Element} messageElement - The AI message element
+     * @param {string} statusText - The status text to display (e.g., '🔍 Searching web...')
+     */
+    function updateStatus(messageElement, statusText) {
+        if (!messageElement) return;
+        const contentElement = messageElement.querySelector('.chat-app__message-content');
+        if (!contentElement) return;
+        contentElement.className = 'chat-app__message-content thinking-indicator';
+        contentElement.textContent = statusText;
+    }
+
     // Public API
     return {
         init,
@@ -317,6 +330,7 @@ const UIController = (function() {
         addMessage,
         clearChatWindow,
         updateMessageContent,
+        updateStatus,
         addSources,
         getUserInput,
         clearUserInput,
