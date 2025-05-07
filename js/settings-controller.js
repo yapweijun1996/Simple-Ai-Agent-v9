@@ -31,6 +31,26 @@ const SettingsController = (function() {
         document.getElementById('show-thinking-toggle').checked = settings.showThinking;
         document.getElementById('model-select').value = settings.selectedModel;
         
+        // Add immediate update listeners for toggles
+        const streamingToggleEl = document.getElementById('streaming-toggle');
+        streamingToggleEl.addEventListener('change', () => {
+            settings.streaming = streamingToggleEl.checked;
+            ChatController.updateSettings(settings);
+            Utils.saveSettingsToCookie(settings);
+        });
+        const cotToggleEl = document.getElementById('cot-toggle');
+        cotToggleEl.addEventListener('change', () => {
+            settings.enableCoT = cotToggleEl.checked;
+            ChatController.updateSettings(settings);
+            Utils.saveSettingsToCookie(settings);
+        });
+        const showThinkingEl = document.getElementById('show-thinking-toggle');
+        showThinkingEl.addEventListener('change', () => {
+            settings.showThinking = showThinkingEl.checked;
+            ChatController.updateSettings(settings);
+            Utils.saveSettingsToCookie(settings);
+        });
+        
         // Add event listeners
         document.getElementById('save-settings').addEventListener('click', saveSettings);
         document.getElementById('close-settings').addEventListener('click', hideSettingsModal);
