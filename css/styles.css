@@ -435,7 +435,7 @@ html, body {
 /* Status Bar for AI status messages */
 .chat-app__status-bar {
     position: fixed;
-    bottom: 80px; /* place above the controls */
+    bottom: 58px; /* place above the controls */
     left: 50%;
     transform: translateX(-50%);
     width: 100%;
