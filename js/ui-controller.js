@@ -137,11 +137,11 @@ const UIController = (function() {
         
         // Format code blocks and check for structured reasoning
         if (text.includes('```')) {
-            // Render code blocks
-            contentElement.innerHTML = formatCodeBlocks(text);
+            // Render code blocks (sanitized)
+            contentElement.innerHTML = DOMPurify.sanitize(formatCodeBlocks(text));
         } else {
-            // Apply regular text formatting
-            contentElement.innerHTML = formatTextWithReasoningHighlights(text);
+            // Apply regular text formatting (sanitized)
+            contentElement.innerHTML = DOMPurify.sanitize(formatTextWithReasoningHighlights(text));
         }
         
         // Add toggle button for CoT responses if they have thinking
