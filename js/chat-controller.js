@@ -388,10 +388,10 @@ Answer: [your final, concise answer based on the reasoning above]`;
                         functionResult = await ApiService.webSearch(args.query);
                         // Update status: fetching content for results
                         UIController.updateStatus(aiMsgElement, '📥 Fetching content...');
-                        for (let i = 0; i < Math.min(3, functionResult.length); i++) {
+                        for (let i = 0; i < Math.min(5, functionResult.length); i++) {
                             const entry = functionResult[i];
                             try {
-                                UIController.updateStatus(aiMsgElement, `📥 Fetching (${i+1}/${Math.min(3, functionResult.length)})`);
+                                UIController.updateStatus(aiMsgElement, `📥 Fetching (${i+1}/${Math.min(5, functionResult.length)})`);
                                 const { content, source } = await ApiService.fetchUrlContent(entry.url);
                                 // Debug: log summary and preview
                                 console.log(`FETCH: url=${entry.url} | source=${source} | len=${content.length}`);
@@ -405,7 +405,7 @@ Answer: [your final, concise answer based on the reasoning above]`;
                         }
                         // After fetching content, summarize each entry
                         UIController.updateStatus(aiMsgElement, '📝 Summarizing content...');
-                        for (let i = 0; i < Math.min(3, functionResult.length); i++) {
+                        for (let i = 0; i < Math.min(5, functionResult.length); i++) {
                             const entry = functionResult[i];
                             try {
                                 entry.summary = await ApiService.summarizeText(entry.content, 3);
@@ -517,10 +517,10 @@ Answer: [your final, concise answer based on the reasoning above]`;
             }
             // Fetch content for top results
             UIController.updateStatus(aiMsgElementForFunction, '📥 Fetching content...');
-            for (let i = 0; i < Math.min(3, functionResult.length); i++) {
+            for (let i = 0; i < Math.min(5, functionResult.length); i++) {
                 const entry = functionResult[i];
                 try {
-                    UIController.updateStatus(aiMsgElementForFunction, `📥 Fetching (${i+1}/${Math.min(3, functionResult.length)})`);
+                    UIController.updateStatus(aiMsgElementForFunction, `📥 Fetching (${i+1}/${Math.min(5, functionResult.length)})`);
                     const { content, source } = await ApiService.fetchUrlContent(entry.url);
                     entry.content = content.length > 2000 ? content.slice(0, 2000) + '...' : content;
                     entry.source = source;
@@ -531,7 +531,7 @@ Answer: [your final, concise answer based on the reasoning above]`;
             }
             // Summarize fetched content
             UIController.updateStatus(aiMsgElementForFunction, '📝 Summarizing content...');
-            for (let i = 0; i < Math.min(3, functionResult.length); i++) {
+            for (let i = 0; i < Math.min(5, functionResult.length); i++) {
                 const entry = functionResult[i];
                 try {
                     entry.summary = await ApiService.summarizeText(entry.content, 3);
