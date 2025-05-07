@@ -376,8 +376,9 @@ Answer: [your final, concise answer based on the reasoning above]`;
                             try {
                                 UIController.updateStatus(aiMsgElement, `📥 Fetching (${i+1}/${Math.min(3, functionResult.length)})`);
                                 const { content, source } = await ApiService.fetchUrlContent(entry.url);
-                                // Log fetched content and source for debugging
-                                console.log(`[fetchUrlContent] URL: ${entry.url} (via ${source})`, content);
+                                // Debug: log summary and preview
+                                console.log(`FETCH: url=${entry.url} | source=${source} | len=${content.length}`);
+                                console.log(`PREVIEW: ${content.slice(0,200).replace(/\n/g, ' ')}...`);
                                 entry.content = content.length > 2000 ? content.slice(0, 2000) + '...' : content;
                                 entry.source = source;
                             } catch (err) {
