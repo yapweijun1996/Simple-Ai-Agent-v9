@@ -29,6 +29,19 @@ Begin Reasoning Now:
      * @param {Object} initialSettings - Initial settings for the chat
      */
     function init(initialSettings) {
+        // Reset and seed chatHistory with system tool descriptions
+        chatHistory = [{
+            role: 'system',
+            content: `You have two tools available:
+1. web_search(query) → returns JSON array of search results [{title, url, snippet}, …]
+2. read_url(url) → returns the text content of that URL
+
+When you decide to use a tool, respond only with valid JSON:
+{"tool":"web_search","arguments":{"query":"..."}}
+or
+{"tool":"read_url","arguments":{"url":"..."}}
+Then await the tool result to continue your reasoning.`
+        }];
         if (initialSettings) {
             settings = { ...settings, ...initialSettings };
         }
@@ -332,6 +345,16 @@ Answer: [your final, concise answer based on the reasoning above]`;
                 // Process response
                 const reply = result.choices[0].message.content;
                 console.log("GPT non-streaming reply:", reply);
+
+                // Intercept tool call JSON
+                let toolCall = null;
+                try {
+                    toolCall = JSON.parse(reply);
+                } catch (e) {}
+                if (toolCall && toolCall.tool && toolCall.arguments) {
+                    await processToolCall(toolCall);
+                    return;
+                }
                 
                 if (settings.enableCoT) {
                     const processed = processCoTResponse(reply);
@@ -477,6 +500,25 @@ Answer: [your final, concise answer based on the reasoning above]`;
                 throw err;
             }
         }
+    }
+
+    /**
+     * Executes a tool call, injects result into chat, and continues reasoning
+     */
+    async function processToolCall(call) {
+        const { tool, arguments: args } = call;
+        let result;
+        if (tool === 'web_search') {
+            result = await ToolsService.webSearch(args.query);
+        } else if (tool === 'read_url') {
+            result = await ToolsService.readUrl(args.url);
+        } else {
+            throw new Error(`Unknown tool: ${tool}`);
+        }
+        // Inject tool result as a system message
+        chatHistory.push({ role: 'system', content: `Tool result (${tool}): ${JSON.stringify(result)}` });
+        // Continue CoT reasoning with updated history
+        await handleOpenAIMessage(SettingsController.getSettings().selectedModel, '');
     }
 
     /**
