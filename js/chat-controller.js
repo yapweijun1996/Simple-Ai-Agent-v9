@@ -297,6 +297,16 @@ Answer: [your final, concise answer based on the reasoning above]`;
                     }
                 );
                 
+                // Intercept JSON tool call in streaming mode
+                let toolCall = null;
+                try {
+                    toolCall = JSON.parse(fullReply.trim());
+                } catch (e) {}
+                if (toolCall && toolCall.tool && toolCall.arguments) {
+                    await processToolCall(toolCall);
+                    return;
+                }
+                
                 // Process response for CoT if enabled
                 if (settings.enableCoT) {
                     const processed = processCoTResponse(fullReply);
