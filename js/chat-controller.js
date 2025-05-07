@@ -564,19 +564,24 @@ Answer: [your final, concise answer based on the reasoning above]`;
             result = await ToolsService.webSearch(args.query);
             // Format search results
             const items = result || [];
+            // Render HTML for UI
             const htmlItems = items.map(r =>
                 `<li><a href="${r.url}" target="_blank" rel="noopener noreferrer">${r.title}</a><br><small>${r.url}</small><p>${Utils.escapeHtml(r.snippet)}</p></li>`
             ).join('');
             const html = `<div class="tool-result" role="group" aria-label="Search results for ${args.query}"><strong>Search results for “${args.query}” (${items.length}):</strong><ul>${htmlItems}</ul></div>`;
             UIController.addHtmlMessage('ai', html);
-            chatHistory.push({ role: 'assistant', content: html });
+            // Push plain-text results for the model
+            const plainText = items.map(r => `${r.title}\n${r.snippet}\n${r.url}`).join("\n\n");
+            chatHistory.push({ role: 'assistant', content: plainText });
         } else if (tool === 'read_url') {
             UIController.showStatus(`Reading content from ${args.url}...`);
             result = await ToolsService.readUrl(args.url);
             const snippet = String(result).slice(0, 500);
             const html = `<div class="tool-result" role="group" aria-label="Read content from ${args.url}"><strong>Read from:</strong> <a href="${args.url}" target="_blank" rel="noopener noreferrer">${args.url}</a><p>${Utils.escapeHtml(snippet)}${String(result).length > 500 ? '...' : ''}</p></div>`;
             UIController.addHtmlMessage('ai', html);
-            chatHistory.push({ role: 'assistant', content: html });
+            // Push plain-text snippet for the model
+            const plainText = snippet + (String(result).length > 500 ? '...' : '');
+            chatHistory.push({ role: 'assistant', content: plainText });
         } else if (tool === 'instant_answer') {
             UIController.showStatus(`Retrieving instant answer for "${args.query}"...`);
             result = await ToolsService.instantAnswer(args.query);
