@@ -100,5 +100,17 @@ const ToolsService = (function() {
       throw new Error('All proxies failed');
     }
 
-    return { webSearch, readUrl };
+    /**
+     * Fetches Instant Answer from DuckDuckGo API.
+     * @param {string} query - The search query.
+     * @returns {Promise<Object>} - The JSON response from DuckDuckGo Instant Answer API.
+     */
+    async function instantAnswer(query) {
+      const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&pretty=1`;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`Instant Answer API error ${response.status}`);
+      return response.json();
+    }
+
+    return { webSearch, readUrl, instantAnswer };
 })(); 

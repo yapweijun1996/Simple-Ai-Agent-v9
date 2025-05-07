@@ -32,17 +32,19 @@ Begin Reasoning Now:
         // Reset and seed chatHistory with system tool instructions
         chatHistory = [{
             role: 'system',
-            content: `You are an AI assistant with access to two tools for external information:
+            content: `You are an AI assistant with access to three tools for external information:
 1. web_search(query) → returns a JSON array of search results [{title, url, snippet}, …]
 2. read_url(url) → returns the text content of a web page
+3. instant_answer(query) → returns a JSON object from DuckDuckGo's Instant Answer API for quick facts, definitions, and summaries (no proxies needed)
 
-For any question requiring up-to-date facts, statistics, or external knowledge (e.g., currency rates, news), you MUST call web_search with the appropriate query.
-To read content from a specific URL, call read_url with that URL.
+For any question requiring up-to-date facts, statistics, or concise definitions, choose the appropriate tool above and call it exactly once per question.
 
 When calling a tool, output EXACTLY a JSON object and nothing else, in this format:
 {"tool":"web_search","arguments":{"query":"your query"}}
 or
 {"tool":"read_url","arguments":{"url":"https://example.com"}}
+or
+{"tool":"instant_answer","arguments":{"query":"your query"}}
 
 Wait for the tool result to be provided before continuing your explanation or final answer.
 After receiving the tool result, continue thinking step-by-step and then provide your answer.`
@@ -527,6 +529,8 @@ Answer: [your final, concise answer based on the reasoning above]`;
             result = await ToolsService.webSearch(args.query);
         } else if (tool === 'read_url') {
             result = await ToolsService.readUrl(args.url);
+        } else if (tool === 'instant_answer') {
+            result = await ToolsService.instantAnswer(args.query);
         } else {
             throw new Error(`Unknown tool: ${tool}`);
         }
