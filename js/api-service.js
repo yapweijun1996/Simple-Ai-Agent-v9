@@ -371,18 +371,19 @@ const ApiService = (function() {
     /**
      * Fetches the content of a URL, retrying with CORS proxies if needed.
      * @param {string} url - The URL to fetch.
-     * @returns {Promise<string>} - The fetched content as text.
+     * @returns {Promise<{content: string, source: string}>} - The fetched content as an object
      */
     async function fetchWithCorsProxy(url) {
         // Try direct fetch first
         try {
             const response = await fetch(url);
             if (response.ok) {
-                return await response.text();
+                const text = await response.text();
+                return { content: text, source: 'direct' };
             } else {
                 throw new Error(`Direct fetch HTTP error ${response.status}`);
             }
-        } catch (err) {
+        } catch (_err) {
             // Continue to proxy fallback
         }
         // Proxy fallback logic (same as webSearch)
@@ -418,7 +419,8 @@ const ApiService = (function() {
                 const proxyUrl = proxy.formatUrl(url);
                 const response = await fetch(proxyUrl);
                 if (!response.ok) throw new Error(`Proxy ${proxy.name} HTTP error ${response.status}`);
-                return await proxy.parseResponse(response);
+                const text = await proxy.parseResponse(response);
+                return { content: text, source: proxy.name };
             } catch (err) {
                 console.warn(`fetchWithCorsProxy proxy ${proxy.name} failed: ${err.message}`);
             }
@@ -429,7 +431,7 @@ const ApiService = (function() {
     /**
      * Public API to fetch URL content robustly (with CORS proxy fallback)
      * @param {string} url - The URL to fetch
-     * @returns {Promise<string>} - The fetched content as text
+     * @returns {Promise<{content: string, source: string}>}
      */
     async function fetchUrlContent(url) {
         return await fetchWithCorsProxy(url);

@@ -364,44 +364,45 @@ Answer: [your final, concise answer based on the reasoning above]`;
                     console.log(`Function call requested: ${fname}`, args);
                     let functionResult;
                     if (fname === 'webSearch' && args.query) {
+                        // Perform search and enrich with content+source
                         functionResult = await ApiService.webSearch(args.query);
-                        // Enhance: fetch content for top 3 results
                         for (let i = 0; i < Math.min(3, functionResult.length); i++) {
-                            const url = functionResult[i].url;
+                            const entry = functionResult[i];
                             try {
-                                let content = await ApiService.fetchUrlContent(url);
-                                // Truncate to 2000 chars for brevity
-                                if (content.length > 2000) content = content.slice(0, 2000) + '...';
-                                functionResult[i].content = content;
+                                const { content, source } = await ApiService.fetchUrlContent(entry.url);
+                                entry.content = content.length > 2000 ? content.slice(0, 2000) + '...' : content;
+                                entry.source = source;
                             } catch (err) {
-                                functionResult[i].content = `Error fetching content: ${err.message}`;
+                                entry.content = `Error fetching content: ${err.message}`;
+                                entry.source = 'error';
                             }
                         }
                     } else {
                         throw new Error(`Unknown function call: ${fname}`);
                     }
-                    // Add assistant function call message to history
+                    // Add the function call messages
                     chatHistory.push({ role: 'assistant', name: fname, content: messageObj.function_call.arguments });
-                    // Add function response to history
                     chatHistory.push({ role: 'function', name: fname, content: JSON.stringify(functionResult) });
                     
-                    // Call model again for final answer
+                    // Call model for final answer
                     const followup = await ApiService.sendOpenAIRequest(model, chatHistory);
                     const finalMsg = followup.choices[0].message.content;
                     console.log("GPT followup reply:", finalMsg);
                     
-                    // Process CoT if enabled
+                    // Determine display text
+                    let displayText;
                     if (settings.enableCoT) {
                         const processed = processCoTResponse(finalMsg);
                         if (processed.thinking) console.log('AI Thinking:', processed.thinking);
-                        const displayText = formatResponseForDisplay(processed);
-                        UIController.addMessage('ai', displayText);
-                        chatHistory.push({ role: 'assistant', content: finalMsg });
+                        displayText = formatResponseForDisplay(processed);
                     } else {
-                        UIController.addMessage('ai', finalMsg);
-                        chatHistory.push({ role: 'assistant', content: finalMsg });
+                        displayText = finalMsg;
                     }
-                    
+                    // Render AI message and append sources
+                    const aiElem = UIController.addMessage('ai', displayText);
+                    chatHistory.push({ role: 'assistant', content: finalMsg });
+                    // Show data sources
+                    UIController.addSources(aiElem, functionResult.map(r => ({ url: r.url, source: r.source })));
                     return;
                 }
                 // Normal response handling
