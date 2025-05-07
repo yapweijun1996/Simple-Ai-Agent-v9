@@ -9,7 +9,7 @@ const ChatController = (function() {
     // Private state
     let chatHistory = [];
     let totalTokens = 0;
-    let settings = { streaming: false, enableCoT: false, showThinking: true };
+    let settings = { streaming: false, enableCoT: false, showThinking: true, hasOpenAIKey: false };
     let isThinking = false;
     let lastThinkingContent = '';
     let lastAnswerContent = '';

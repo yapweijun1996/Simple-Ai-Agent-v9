@@ -28,7 +28,7 @@ const App = (function() {
         // Show main container (will be visible but login modal on top)
         document.getElementById('chat-container').style.display = 'flex';
         
-        // Check for saved password
+        // Prompt for password or allow skipping GPT
         checkPasswordOrPrompt();
     }
 
@@ -56,6 +56,7 @@ const App = (function() {
             
             // Setup event listeners
             document.getElementById('login-button').addEventListener('click', handleLogin);
+            document.getElementById('skip-login-button').addEventListener('click', handleSkipLogin);
             document.getElementById('api-password').addEventListener('keydown', function(event) {
                 if (event.key === 'Enter') {
                     handleLogin();
@@ -86,28 +87,28 @@ const App = (function() {
             return;
         }
         
+        // Attempt to init OpenAI key
         const success = ApiService.init(password);
-        
         if (success) {
-            // Store remember password setting
-            const settings = ChatController.getSettings();
-            settings.rememberPassword = rememberCheckbox.checked;
-            ChatController.updateSettings(settings);
-            
+            // Store settings and mark we have a valid OpenAI key
+            ChatController.updateSettings({
+                rememberPassword: rememberCheckbox.checked,
+                hasOpenAIKey: true
+            });
             // Save password if remember is checked
             if (rememberCheckbox.checked) {
                 Utils.savePasswordToCookie(password);
             }
-            
             // Hide the login modal
             loginModal.style.display = 'none';
         } else {
-            // Show error message
-            document.getElementById('login-error').textContent = 'Invalid password. Please try again.';
-            document.getElementById('login-error').style.display = 'block';
+            // Invalid password: proceed in Gemini-only mode
+            ChatController.updateSettings({ hasOpenAIKey: false });
+            // Hide modal and clear saved password
             Utils.clearSavedPassword();
-            passwordInput.value = '';
-            passwordInput.focus();
+            loginModal.style.display = 'none';
+            // Optionally inform the user
+            console.warn('Invalid API key – continuing in Gemini/Gemma-only mode.');
         }
     }
     
@@ -117,9 +118,11 @@ const App = (function() {
      */
     function doLogin(password) {
         const success = ApiService.init(password);
-        
-        if (!success) {
+        if (success) {
+            ChatController.updateSettings({ hasOpenAIKey: true });
+        } else {
             Utils.clearSavedPassword();
+            ChatController.updateSettings({ hasOpenAIKey: false });
             showLoginModal();
         }
     }
@@ -130,6 +133,14 @@ const App = (function() {
     function logOut() {
         Utils.clearSavedPassword();
         location.reload();
+    }
+
+    /**
+     * User opts to skip GPT login
+     */
+    function handleSkipLogin() {
+        ChatController.updateSettings({ hasOpenAIKey: false });
+        loginModal.style.display = 'none';
     }
 
     // Initialize the app when the DOM is ready

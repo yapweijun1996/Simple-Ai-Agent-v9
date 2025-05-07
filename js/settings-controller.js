@@ -31,6 +31,23 @@ const SettingsController = (function() {
         document.getElementById('show-thinking-toggle').checked = settings.showThinking;
         document.getElementById('model-select').value = settings.selectedModel;
         
+        // Disable GPT options if no OpenAI key is available
+        const hasKey = ChatController.getSettings().hasOpenAIKey;
+        const modelSelect = document.getElementById('model-select');
+        Array.from(modelSelect.options).forEach(opt => {
+            if (opt.value.startsWith('gpt-') && !hasKey) {
+                opt.disabled = true;
+            } else {
+                opt.disabled = false;
+            }
+        });
+        
+        // If the selectedModel is now disabled, pick the first available
+        if (modelSelect.value.startsWith('gpt-') && !hasKey) {
+            const firstEnabled = Array.from(modelSelect.options).find(o => !o.disabled);
+            if (firstEnabled) modelSelect.value = firstEnabled.value;
+        }
+        
         // Add event listeners
         document.getElementById('save-settings').addEventListener('click', saveSettings);
         document.getElementById('close-settings').addEventListener('click', hideSettingsModal);
@@ -57,6 +74,23 @@ const SettingsController = (function() {
         document.getElementById('cot-toggle').checked = settings.enableCoT;
         document.getElementById('show-thinking-toggle').checked = settings.showThinking;
         document.getElementById('model-select').value = settings.selectedModel;
+        
+        // Disable GPT options if no OpenAI key is available
+        const hasKey2 = ChatController.getSettings().hasOpenAIKey;
+        const modelSelect2 = document.getElementById('model-select');
+        Array.from(modelSelect2.options).forEach(opt => {
+            if (opt.value.startsWith('gpt-') && !hasKey2) {
+                opt.disabled = true;
+            } else {
+                opt.disabled = false;
+            }
+        });
+        
+        // If the selectedModel is now disabled, pick the first available
+        if (modelSelect2.value.startsWith('gpt-') && !hasKey2) {
+            const firstEnabled2 = Array.from(modelSelect2.options).find(o => !o.disabled);
+            if (firstEnabled2) modelSelect2.value = firstEnabled2.value;
+        }
     }
 
     /**
