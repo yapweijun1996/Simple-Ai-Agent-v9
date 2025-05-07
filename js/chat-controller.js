@@ -456,6 +456,16 @@ Answer: [your final, concise answer based on the reasoning above]`;
                     }
                 );
                 
+                // Intercept JSON tool call in streaming mode
+                let toolCall = null;
+                try {
+                    toolCall = JSON.parse(fullReply.trim());
+                } catch (e) {}
+                if (toolCall && toolCall.tool && toolCall.arguments) {
+                    await processToolCall(toolCall);
+                    return;
+                }
+                
                 // Process response for CoT if enabled
                 if (settings.enableCoT) {
                     const processed = processCoTResponse(fullReply);
@@ -506,6 +516,16 @@ Answer: [your final, concise answer based on the reasoning above]`;
                     textResponse = candidate.content.parts.map(p => p.text).join(' ');
                 } else if (candidate.content.text) {
                     textResponse = candidate.content.text;
+                }
+                
+                // Intercept JSON tool call in non-streaming mode
+                let toolCall = null;
+                try {
+                    toolCall = JSON.parse(textResponse.trim());
+                } catch (e) {}
+                if (toolCall && toolCall.tool && toolCall.arguments) {
+                    await processToolCall(toolCall);
+                    return;
                 }
                 
                 if (settings.enableCoT) {
@@ -568,8 +588,13 @@ Answer: [your final, concise answer based on the reasoning above]`;
         }
         // Clear status
         UIController.clearStatus();
-        // Continue Chain-of-Thought with updated history
-        await handleOpenAIMessage(SettingsController.getSettings().selectedModel, '');
+        // Continue Chain-of-Thought with updated history for the active model
+        const selectedModel = SettingsController.getSettings().selectedModel;
+        if (selectedModel.startsWith('gpt')) {
+            await handleOpenAIMessage(selectedModel, '');
+        } else {
+            await handleGeminiMessage(selectedModel, '');
+        }
     }
 
     /**
