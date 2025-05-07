@@ -561,15 +561,31 @@ Answer: [your final, concise answer based on the reasoning above]`;
         // Show status while calling tool
         if (tool === 'web_search') {
             UIController.showStatus(`Searching web for "${args.query}"...`);
-            result = await ToolsService.webSearch(args.query);
-            // Format search results
-            const items = result || [];
-            const htmlItems = items.map(r =>
-                `<li><a href="${r.url}" target="_blank" rel="noopener noreferrer">${r.title}</a><br><small>${r.url}</small><p>${Utils.escapeHtml(r.snippet)}</p></li>`
-            ).join('');
-            const html = `<div class="tool-result" role="group" aria-label="Search results for ${args.query}"><strong>Search results for “${args.query}” (${items.length}):</strong><ul>${htmlItems}</ul></div>`;
-            UIController.addHtmlMessage('ai', html);
-            chatHistory.push({ role: 'assistant', content: html });
+            try {
+                result = await ToolsService.webSearch(args.query);
+                // Format search results
+                const items = result || [];
+                const htmlItems = items.map(r =>
+                    `<li><a href="${r.url}" target="_blank" rel="noopener noreferrer">${r.title}</a><br><small>${r.url}</small><p>${Utils.escapeHtml(r.snippet)}</p></li>`
+                ).join('');
+                const html = `<div class="tool-result" role="group" aria-label="Search results for ${args.query}"><strong>Search results for “${args.query}” (${items.length}):</strong><ul>${htmlItems}</ul></div>`;
+                UIController.addHtmlMessage('ai', html);
+                chatHistory.push({ role: 'assistant', content: html });
+            } catch (err) {
+                console.warn(`Web search failed:`, err);
+                UIController.clearStatus();
+                const fallback = `Unable to retrieve search results for "${args.query}". Proceeding with available knowledge.`;
+                UIController.addMessage('ai', fallback);
+                chatHistory.push({ role: 'assistant', content: fallback });
+                // Continue reasoning with current info
+                const selectedModel = SettingsController.getSettings().selectedModel;
+                if (selectedModel.startsWith('gpt')) {
+                    await handleOpenAIMessage(selectedModel, '');
+                } else {
+                    await handleGeminiMessage(selectedModel, '');
+                }
+                return;
+            }
         } else if (tool === 'read_url') {
             UIController.showStatus(`Reading content from ${args.url}...`);
             result = await ToolsService.readUrl(args.url);
