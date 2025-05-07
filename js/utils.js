@@ -207,6 +207,39 @@ const Utils = (function() {
         return String(str).replace(/[&<>"']/g, s => map[s]);
     }
 
+    // Add fetch helpers for timeout and retry
+    async function fetchWithTimeout(resource, options = {}, timeout = 10000) {
+        const controller = new AbortController();
+        const id = setTimeout(() => controller.abort(), timeout);
+        options.signal = controller.signal;
+        try {
+            return await fetch(resource, options);
+        } finally {
+            clearTimeout(id);
+        }
+    }
+
+    async function fetchWithRetry(resource, options = {}, retries = 3, retryDelay = 1000, timeout = 10000) {
+        let lastError;
+        for (let attempt = 1; attempt <= retries; attempt++) {
+            try {
+                const response = await fetchWithTimeout(resource, options, timeout);
+                if (!response.ok) {
+                    const text = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${text}`);
+                }
+                return response;
+            } catch (err) {
+                lastError = err;
+                console.warn(`Fetch attempt ${attempt} failed:`, err);
+                if (attempt < retries) {
+                    await new Promise(r => setTimeout(r, retryDelay));
+                }
+            }
+        }
+        throw lastError;
+    }
+
     // Public API
     return {
         decrypt,
@@ -222,6 +255,8 @@ const Utils = (function() {
         clearSavedPassword,
         saveSettingsToCookie,
         getSettingsFromCookie,
-        escapeHtml
+        escapeHtml,
+        fetchWithTimeout,
+        fetchWithRetry
     };
 })(); 

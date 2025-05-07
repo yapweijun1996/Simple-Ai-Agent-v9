@@ -65,14 +65,14 @@ const ApiService = (function() {
      */
     async function sendOpenAIRequest(model, messages) {
         const payload = { model, messages };
-        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        const response = await Utils.fetchWithRetry('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json', 
                 'Authorization': 'Bearer ' + apiKey 
             },
             body: JSON.stringify(payload)
-        });
+        }, 3, 1000, 10000);
         
         if (!response.ok) {
             const errText = await response.text();
@@ -90,14 +90,14 @@ const ApiService = (function() {
      * @returns {Promise<string>} - The full response text
      */
     async function streamOpenAIRequest(model, messages, onChunk) {
-        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        const response = await Utils.fetchWithRetry('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json', 
                 'Authorization': 'Bearer ' + apiKey 
             },
             body: JSON.stringify({ model, messages, stream: true })
-        });
+        }, 3, 1000, 10000);
         
         if (!response.ok) {
             const errText = await response.text();
@@ -164,11 +164,11 @@ const ApiService = (function() {
                 };
                 
                 const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`;
-                const response = await fetch(url, {
+                const response = await Utils.fetchWithRetry(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(requestBody)
-                });
+                }, 3, 1000, 10000);
                 
                 if (!response.ok) {
                     const errText = await response.text();
@@ -203,11 +203,11 @@ const ApiService = (function() {
         
         // Send the streaming request
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${geminiApiKey}`;
-        const response = await fetch(url, {
+        const response = await Utils.fetchWithRetry(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(requestBody)
-        });
+        }, 3, 1000, 10000);
         
         if (!response.ok) {
             const errText = await response.text();
@@ -274,11 +274,11 @@ const ApiService = (function() {
                 }));
                 
                 const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`;
-                const res = await fetch(url, {
+                const res = await Utils.fetchWithRetry(url, {
                     method: 'POST', 
                     headers: { 'Content-Type': 'application/json' }, 
                     body: JSON.stringify({ contents, generationConfig })
-                });
+                }, 3, 1000, 10000);
                 
                 usageResult = await res.json();
                 return usageResult.usageMetadata?.totalTokenCount || 0;
