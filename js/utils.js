@@ -240,6 +240,50 @@ const Utils = (function() {
         throw lastError;
     }
 
+    // Add CORS proxy list and proxy-based retry helper
+    const corsProxies = [
+        'https://corsproxy.io/?',
+        'https://cors.eu.org/',
+        'https://thingproxy.freeboard.io/fetch/?url=',
+        'https://api.allorigins.win/raw?url=',
+        'https://api.allorigins.cf/raw?url=',
+        'https://api.allorigins.tk/raw?url=',
+        'https://api.codetabs.com/v1/proxy?quest=',
+        'https://yacdn.org/proxy/',
+        'https://cors.bridged.cc/',
+        'https://cors.sho.sh/',
+        'https://cors.ironproxy.xyz/',
+        'https://norobe-cors-anywhere.herokuapp.com/',
+        'https://corsproxy.github.io/?url=',
+        'https://cors-proxy.elfsight.com/',
+        ''
+    ];
+
+    async function fetchWithProxyRetry(resource, options = {}, proxies = corsProxies, retries = proxies.length, retryDelay = 1000, timeout = 10000) {
+        let lastError;
+        for (let attempt = 1; attempt <= retries; attempt++) {
+            const prefix = proxies[(attempt - 1) % proxies.length];
+            const url = prefix
+                ? (prefix.endsWith('?') || prefix.includes('?url=')
+                    ? prefix + encodeURIComponent(resource)
+                    : prefix + resource)
+                : resource;
+            try {
+                const response = await fetchWithTimeout(url, options, timeout);
+                if (!response.ok) {
+                    const text = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${text}`);
+                }
+                return response;
+            } catch (err) {
+                lastError = err;
+                console.warn(`Proxy fetch attempt ${attempt} via ${prefix || 'direct'} failed:`, err);
+                if (attempt < retries) await new Promise(r => setTimeout(r, retryDelay));
+            }
+        }
+        throw lastError;
+    }
+
     // Public API
     return {
         decrypt,
@@ -257,6 +301,7 @@ const Utils = (function() {
         getSettingsFromCookie,
         escapeHtml,
         fetchWithTimeout,
-        fetchWithRetry
+        fetchWithRetry,
+        fetchWithProxyRetry
     };
 })(); 
