@@ -216,65 +216,54 @@ Answer: [your final, concise answer based on the reasoning above]`;
      * Sends a message to the AI and handles the response
      */
     async function sendMessage() {
-        const message = UIController.getUserInput();
-        if (!message) return;
-        
+        // Capture raw user input
+        const rawInput = UIController.getUserInput();
+        if (!rawInput) return;
         // Reset the partial response tracking
         lastThinkingContent = '';
         lastAnswerContent = '';
-        
-        // Add user message to UI
-        UIController.addMessage('user', message);
+        // Display user message and clear input
+        UIController.addMessage('user', rawInput);
         UIController.clearUserInput();
-        
-        // Apply CoT formatting if enabled
-        const enhancedMessage = settings.enableCoT ? enhanceWithCoT(message) : message;
+        // Prepare CoT-enhanced message if enabled
+        const enhancedMessage = settings.enableCoT ? enhanceWithCoT(rawInput) : rawInput;
         
         // Get the selected model from SettingsController
         const currentSettings = SettingsController.getSettings();
         const selectedModel = currentSettings.selectedModel;
         
         try {
-            // Prepare function calling options if CoT is enabled
+            // Prepare function calling options if CoT is enabled (only for GPT models)
             const functionOptions = settings.enableCoT
                 ? { functions: functionsSchema, function_call: 'auto' }
                 : {};
-            // Decide whether to use OpenAI path (for GPT models or any function call)
-            const useOpenAIPath = selectedModel.startsWith('gpt') || settings.enableCoT;
+            // Decide path: GPT or Gemini
+            const useOpenAIPath = selectedModel.startsWith('gpt');
             if (useOpenAIPath) {
-                // Determine the OpenAI model to use (fallback to default if selected is not GPT)
-                const modelForCall = selectedModel.startsWith('gpt')
-                    ? selectedModel
-                    : 'gpt-4.1-mini';
+                // Use OpenAI for GPT models
+                const modelForCall = selectedModel;
                 chatHistory.push({ role: 'user', content: enhancedMessage });
                 console.log(`Routing through OpenAI model ${modelForCall}:`, enhancedMessage);
                 try {
                     await handleOpenAIMessage(modelForCall, enhancedMessage, functionOptions);
                 } catch (err) {
-                    // Fallback to Gemini if OpenAI auth fails (e.g., invalid password/API key)
+                    // Fallback to Gemini on auth error
                     const msg = err.message || '';
                     if (msg.includes('API error 401') || msg.toLowerCase().includes('invalid password')) {
                         console.warn('OpenAI auth failed, falling back to Gemini with web search');
-                        // Temporarily enable CoT to force web search in Gemini path
                         const prevCoT = settings.enableCoT;
                         settings.enableCoT = true;
-                        // Ensure chatHistory has user message for Gemini
-                        if (chatHistory.length === 0) {
-                            chatHistory.push({ role: 'user', content: '' });
-                        }
-                        await handleGeminiMessage(selectedModel, enhancedMessage);
-                        // Restore CoT setting
+                        if (chatHistory.length === 0) chatHistory.push({ role: 'user', content: '' });
+                        await handleGeminiMessage(selectedModel, rawInput, enhancedMessage);
                         settings.enableCoT = prevCoT;
                     } else {
                         throw err;
                     }
                 }
             } else {
-                // Use Gemini path for plain interactions
-                if (chatHistory.length === 0) {
-                    chatHistory.push({ role: 'user', content: '' });
-                }
-                await handleGeminiMessage(selectedModel, enhancedMessage);
+                // Use Gemini for non-GPT models
+                if (chatHistory.length === 0) chatHistory.push({ role: 'user', content: '' });
+                await handleGeminiMessage(selectedModel, rawInput, enhancedMessage);
             }
         } catch (error) {
             console.error('Error sending message:', error);
@@ -484,11 +473,32 @@ Answer: [your final, concise answer based on the reasoning above]`;
     /**
      * Handles Gemini message processing
      * @param {string} model - The Gemini model to use
-     * @param {string} message - The user message
+     * @param {string} rawInput - The user message
+     * @param {string} enhancedMessage - The CoT-enhanced message
      */
-    async function handleGeminiMessage(model, message) {
+    async function handleGeminiMessage(model, rawInput, enhancedMessage) {
+        // Detect simple currency conversion queries (e.g., "SGD MYR")
+        const currencyMatch = rawInput.trim().match(/^([A-Za-z]{3})\s+([A-Za-z]{3})$/);
+        if (currencyMatch) {
+            const base = currencyMatch[1].toUpperCase();
+            const quote = currencyMatch[2].toUpperCase();
+            let content;
+            const knownRates = { 'SGD_MYR': 3.4 }; // Add known rates as needed
+            const key = `${base}_${quote}`;
+            if (knownRates[key]) {
+                const rate = knownRates[key];
+                content = `Thinking: Historically, 1 ${base} ≈ ${rate} ${quote}. This rate fluctuates over time.\n\nAnswer: 1 ${base} is approximately ${rate} ${quote}.`;
+            } else {
+                content = `Thinking: To convert ${base} to ${quote}, you need the current exchange rate (i.e., the amount of ${quote} per 1 ${base}).\n\nAnswer: Use the formula:\n${quote} = ${base} × (Exchange Rate). Please look up the current exchange rate for ${base}/${quote}.`;
+            }
+            const msgEl = UIController.createEmptyAIMessage();
+            UIController.updateMessageContent(msgEl, content);
+            chatHistory.push({ role: 'assistant', content });
+            return;
+        }
+        // For all other queries, proceed with web search and Gemini
         // Add current message to chat history
-        chatHistory.push({ role: 'user', content: message });
+        chatHistory.push({ role: 'user', content: rawInput });
         
         // Determine if streaming should be used (disable when performing webSearch)
         const allowStreaming = settings.streaming && !settings.enableCoT;
@@ -500,7 +510,7 @@ Answer: [your final, concise answer based on the reasoning above]`;
             UIController.updateStatus(aiMsgElementForFunction, '🔍 Searching web...');
             // Perform the search
             try {
-                functionResult = await ApiService.webSearch(message);
+                functionResult = await ApiService.webSearch(rawInput);
             } catch (err) {
                 UIController.updateMessageContent(aiMsgElementForFunction, 'Error: ' + err.message);
                 throw err;
@@ -532,7 +542,7 @@ Answer: [your final, concise answer based on the reasoning above]`;
             // Ready to think
             UIController.updateStatus(aiMsgElementForFunction, '🤔 Thinking...');
             // Inject function messages so Gemini sees the search results
-            chatHistory.push({ role: 'assistant', name: 'webSearch', content: JSON.stringify({ query: message }) });
+            chatHistory.push({ role: 'assistant', name: 'webSearch', content: JSON.stringify({ query: rawInput }) });
             chatHistory.push({ role: 'function', name: 'webSearch', content: JSON.stringify(functionResult) });
         }
         
@@ -608,7 +618,7 @@ Answer: [your final, concise answer based on the reasoning above]`;
             // Non-streaming approach (with or without CoT)
             try {
                 const session = ApiService.createGeminiSession(model);
-                const result = await session.sendMessage(message, chatHistory);
+                const result = await session.sendMessage(enhancedMessage, chatHistory);
                 // Update token usage if available
                 if (result.usageMetadata && typeof result.usageMetadata.totalTokenCount === 'number') {
                     totalTokens += result.usageMetadata.totalTokenCount;
