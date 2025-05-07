@@ -301,6 +301,11 @@ const ApiService = (function() {
         const ddgUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
         const proxies = [
             {
+                name: 'LocalProxy',
+                formatUrl: url => `/proxy?url=${encodeURIComponent(url)}`,
+                parseResponse: async res => res.text()
+            },
+            {
                 name: 'AllOrigins',
                 formatUrl: url => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
                 parseResponse: async res => (await res.json()).contents
@@ -388,6 +393,11 @@ const ApiService = (function() {
         }
         // Proxy fallback logic (same as webSearch)
         const proxies = [
+            {
+                name: 'LocalProxy',
+                formatUrl: url => `/proxy?url=${encodeURIComponent(url)}`,
+                parseResponse: async res => res.text()
+            },
             {
                 name: 'AllOrigins',
                 formatUrl: url => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,

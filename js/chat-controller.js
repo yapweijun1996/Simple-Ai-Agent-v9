@@ -337,11 +337,13 @@ Answer: [your final, concise answer based on the reasoning above]`;
                 }
             }
         }
-        // Non-streaming approach (or when function calling is used)
+        // Non-streaming approach: show loader placeholder if using function calling
         if (!settings.streaming || options.functions) {
-            // Non-streaming approach
+            let aiMsgElement;
+            if (options.functions) {
+                aiMsgElement = UIController.createEmptyAIMessage();
+            }
             try {
-                // Include function options if provided
                 const result = await ApiService.sendOpenAIRequest(model, chatHistory, options);
                 
                 if (result.error) {
@@ -398,28 +400,35 @@ Answer: [your final, concise answer based on the reasoning above]`;
                     } else {
                         displayText = finalMsg;
                     }
-                    // Render AI message and append sources
-                    const aiElem = UIController.addMessage('ai', displayText);
+                    // Update placeholder with final answer and append sources
+                    UIController.updateMessageContent(aiMsgElement, displayText);
                     chatHistory.push({ role: 'assistant', content: finalMsg });
-                    // Show data sources
-                    UIController.addSources(aiElem, functionResult.map(r => ({ url: r.url, source: r.source })));
+                    UIController.addSources(aiMsgElement, functionResult.map(r => ({ url: r.url, source: r.source })));
                     return;
                 }
-                // Normal response handling
+                // Normal response handling (no function call)
                 const reply = messageObj.content;
                 console.log("GPT non-streaming reply:", reply);
-                
+                // Ensure placeholder exists
+                if (!aiMsgElement) {
+                    aiMsgElement = UIController.createEmptyAIMessage();
+                }
                 if (settings.enableCoT) {
                     const processed = processCoTResponse(reply);
                     if (processed.thinking) console.log('AI Thinking:', processed.thinking);
                     const displayText = formatResponseForDisplay(processed);
-                    UIController.addMessage('ai', displayText);
-                    chatHistory.push({ role: 'assistant', content: reply });
+                    UIController.updateMessageContent(aiMsgElement, displayText);
                 } else {
-                    chatHistory.push({ role: 'assistant', content: reply });
-                    UIController.addMessage('ai', reply);
+                    UIController.updateMessageContent(aiMsgElement, reply);
                 }
+                chatHistory.push({ role: 'assistant', content: reply });
             } catch (err) {
+                // Show error placeholder
+                if (aiMsgElement) {
+                    UIController.updateMessageContent(aiMsgElement, 'Error: ' + err.message);
+                } else {
+                    UIController.addMessage('ai', 'Error: ' + err.message);
+                }
                 throw err;
             }
         }
