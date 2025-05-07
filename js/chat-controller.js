@@ -95,6 +95,26 @@ Answer: [your final, concise answer based on the reasoning above]`;
     }
 
     /**
+     * Attempts to find and parse a JSON tool call in text, even if wrapped in code fences.
+     * @param {string} text
+     * @returns {Object|null}
+     */
+    function extractToolCallFromText(text) {
+        // Strip code fences
+        let jsonString = text;
+        const fenceMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (fenceMatch) jsonString = fenceMatch[1];
+        // Extract the first JSON object
+        const braceMatch = jsonString.match(/\{[\s\S]*?\}/);
+        if (braceMatch) jsonString = braceMatch[0];
+        try {
+            return JSON.parse(jsonString.trim());
+        } catch (err) {
+            return null;
+        }
+    }
+
+    /**
      * Processes the AI response to extract thinking and answer parts
      * @param {string} response - The raw AI response
      * @returns {Object} - Object with thinking and answer components
@@ -315,11 +335,8 @@ Answer: [your final, concise answer based on the reasoning above]`;
                     }
                 );
                 
-                // Intercept JSON tool call in streaming mode
-                let toolCall = null;
-                try {
-                    toolCall = JSON.parse(fullReply.trim());
-                } catch (e) {}
+                // Intercept JSON tool call (handles code fences)
+                const toolCall = extractToolCallFromText(fullReply);
                 if (toolCall && toolCall.tool && toolCall.arguments) {
                     await processToolCall(toolCall);
                     return;
@@ -376,11 +393,8 @@ Answer: [your final, concise answer based on the reasoning above]`;
                 const reply = result.choices[0].message.content;
                 console.log("GPT non-streaming reply:", reply);
 
-                // Intercept tool call JSON
-                let toolCall = null;
-                try {
-                    toolCall = JSON.parse(reply);
-                } catch (e) {}
+                // Intercept JSON tool call (handles code fences)
+                const toolCall = extractToolCallFromText(reply);
                 if (toolCall && toolCall.tool && toolCall.arguments) {
                     await processToolCall(toolCall);
                     return;
@@ -456,11 +470,8 @@ Answer: [your final, concise answer based on the reasoning above]`;
                     }
                 );
                 
-                // Intercept JSON tool call in streaming mode
-                let toolCall = null;
-                try {
-                    toolCall = JSON.parse(fullReply.trim());
-                } catch (e) {}
+                // Intercept JSON tool call (handles code fences)
+                const toolCall = extractToolCallFromText(fullReply);
                 if (toolCall && toolCall.tool && toolCall.arguments) {
                     await processToolCall(toolCall);
                     return;
@@ -518,11 +529,8 @@ Answer: [your final, concise answer based on the reasoning above]`;
                     textResponse = candidate.content.text;
                 }
                 
-                // Intercept JSON tool call in non-streaming mode
-                let toolCall = null;
-                try {
-                    toolCall = JSON.parse(textResponse.trim());
-                } catch (e) {}
+                // Intercept JSON tool call (handles code fences)
+                const toolCall = extractToolCallFromText(textResponse);
                 if (toolCall && toolCall.tool && toolCall.arguments) {
                     await processToolCall(toolCall);
                     return;
