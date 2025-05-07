@@ -242,13 +242,16 @@ const Utils = (function() {
 
     // Add CORS proxy list and proxy-based retry helper
     const corsProxies = [
+        // Direct fetch first
         '',
-        'https://corsproxy.io/?',
-        'https://cors.eu.org/',
-        'https://thingproxy.freeboard.io/fetch/?url=',
+        // Widely used public CORS proxies
+        'https://cors-anywhere.herokuapp.com/',
+        'https://jsonp.afeld.me/?url=',
         'https://api.allorigins.win/raw?url=',
-        'https://api.allorigins.cf/raw?url=',
-        'https://api.allorigins.tk/raw?url=',
+        'https://api.allorigins.xyz/raw?url=',
+        'https://corsproxy.io/?',
+        'https://thingproxy.freeboard.io/fetch/?url=',
+        'https://cors.eu.org/',
         'https://api.codetabs.com/v1/proxy?quest=',
         'https://yacdn.org/proxy/',
         'https://cors.bridged.cc/',
