@@ -235,14 +235,22 @@ Answer: [your final, concise answer based on the reasoning above]`;
         const selectedModel = currentSettings.selectedModel;
         
         try {
-            if (selectedModel.startsWith('gpt')) {
+            // Prepare function calling options if CoT is enabled
+            const functionOptions = settings.enableCoT
+                ? { functions: functionsSchema, function_call: 'auto' }
+                : {};
+            // Decide whether to use OpenAI path (for GPT models or any function call)
+            const useOpenAIPath = selectedModel.startsWith('gpt') || settings.enableCoT;
+            if (useOpenAIPath) {
+                // Determine the OpenAI model to use (fallback to default if selected is not GPT)
+                const modelForCall = selectedModel.startsWith('gpt')
+                    ? selectedModel
+                    : 'gpt-4.1-mini';
                 chatHistory.push({ role: 'user', content: enhancedMessage });
-                console.log("Sent enhanced message to GPT:", enhancedMessage);
-                // Include function schema for auto web search when CoT is enabled
-                const options = settings.enableCoT ? { functions: functionsSchema, function_call: 'auto' } : {};
-                await handleOpenAIMessage(selectedModel, enhancedMessage, options);
+                console.log(`Routing through OpenAI model ${modelForCall}:`, enhancedMessage);
+                await handleOpenAIMessage(modelForCall, enhancedMessage, functionOptions);
             } else {
-                // For Gemini, ensure chat history starts with user message if empty
+                // Use Gemini path for plain interactions
                 if (chatHistory.length === 0) {
                     chatHistory.push({ role: 'user', content: '' });
                 }
