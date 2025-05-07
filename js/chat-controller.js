@@ -538,18 +538,37 @@ Answer: [your final, concise answer based on the reasoning above]`;
     async function processToolCall(call) {
         const { tool, arguments: args } = call;
         let result;
+        // Show status while calling tool
         if (tool === 'web_search') {
+            UIController.showStatus(`Searching web for "${args.query}"...`);
             result = await ToolsService.webSearch(args.query);
+            // Format search results
+            const items = result || [];
+            const htmlItems = items.map(r =>
+                `<li><a href="${r.url}" target="_blank" rel="noopener noreferrer">${r.title}</a><br><small>${r.url}</small><p>${Utils.escapeHtml(r.snippet)}</p></li>`
+            ).join('');
+            const html = `<div class="tool-result" role="group" aria-label="Search results for ${args.query}"><strong>Search results for “${args.query}” (${items.length}):</strong><ul>${htmlItems}</ul></div>`;
+            UIController.addHtmlMessage('ai', html);
+            chatHistory.push({ role: 'assistant', content: html });
         } else if (tool === 'read_url') {
+            UIController.showStatus(`Reading content from ${args.url}...`);
             result = await ToolsService.readUrl(args.url);
+            const snippet = String(result).slice(0, 500);
+            const html = `<div class="tool-result" role="group" aria-label="Read content from ${args.url}"><strong>Read from:</strong> <a href="${args.url}" target="_blank" rel="noopener noreferrer">${args.url}</a><p>${Utils.escapeHtml(snippet)}${String(result).length > 500 ? '...' : ''}</p></div>`;
+            UIController.addHtmlMessage('ai', html);
+            chatHistory.push({ role: 'assistant', content: html });
         } else if (tool === 'instant_answer') {
+            UIController.showStatus(`Retrieving instant answer for "${args.query}"...`);
             result = await ToolsService.instantAnswer(args.query);
+            const text = JSON.stringify(result, null, 2);
+            UIController.addMessage('ai', text);
+            chatHistory.push({ role: 'assistant', content: text });
         } else {
             throw new Error(`Unknown tool: ${tool}`);
         }
-        // Inject tool result as a system message
-        chatHistory.push({ role: 'system', content: `Tool result (${tool}): ${JSON.stringify(result)}` });
-        // Continue CoT reasoning with updated history
+        // Clear status
+        UIController.clearStatus();
+        // Continue Chain-of-Thought with updated history
         await handleOpenAIMessage(SettingsController.getSettings().selectedModel, '');
     }
 

@@ -310,6 +310,22 @@ const UIController = (function() {
         clearUserInput,
         createEmptyAIMessage,
         showStatus,
-        clearStatus
+        clearStatus,
+        /**
+         * Adds a chat bubble with raw HTML content (for tool results)
+         * @param {string} sender - 'user' or 'ai'
+         * @param {string} html - HTML string for the bubble content
+         * @returns {Element} - The created message element
+         */
+        addHtmlMessage(sender, html) {
+            const chatWindow = document.getElementById('chat-window');
+            const messageElement = Utils.createFromTemplate('message-template');
+            messageElement.classList.add(`${sender}-message`);
+            const contentElement = messageElement.querySelector('.chat-app__message-content');
+            contentElement.innerHTML = html;
+            chatWindow.appendChild(messageElement);
+            messageElement.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            return messageElement;
+        }
     };
 })(); 

@@ -450,4 +450,37 @@ html, body {
     border-bottom: 1px solid var(--border-color);
     z-index: 1000;
     visibility: hidden;
+}
+
+/* Tool result styling */
+.tool-result {
+    background: #eef6fb;
+    border: 1px solid #b3d4fc;
+    padding: var(--space-sm) var(--space-md);
+    margin: var(--space-sm) 0;
+    border-radius: var(--radius-sm);
+}
+
+.tool-result strong {
+    display: block;
+    margin-bottom: var(--space-xs);
+}
+
+.tool-result ul {
+    list-style-type: disc;
+    padding-left: var(--space-lg);
+    margin: var(--space-xs) 0;
+}
+
+.tool-result ul li {
+    margin-bottom: var(--space-sm);
+}
+
+.tool-result a {
+    color: var(--primary-color);
+    text-decoration: underline;
+}
+
+.tool-result a:hover {
+    color: #0056b3;
 } 

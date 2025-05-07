@@ -197,6 +197,16 @@ const Utils = (function() {
         }
     }
 
+    /**
+     * Safely escapes HTML special characters in a string
+     * @param {string} str - The string to escape
+     * @returns {string} - The escaped string
+     */
+    function escapeHtml(str) {
+        const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+        return String(str).replace(/[&<>"']/g, s => map[s]);
+    }
+
     // Public API
     return {
         decrypt,
@@ -211,6 +221,7 @@ const Utils = (function() {
         getPasswordFromCookie,
         clearSavedPassword,
         saveSettingsToCookie,
-        getSettingsFromCookie
+        getSettingsFromCookie,
+        escapeHtml
     };
 })(); 
