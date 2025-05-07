@@ -64,6 +64,10 @@ An interactive AI chat assistant supporting multiple language models (GPT-4.1, G
   - `utils.js` — Utility functions
 - `css/` — Stylesheets
 
+## Preview
+<img width="1440" alt="og_img" src="https://github.com/user-attachments/assets/d470f9a0-106c-4ac8-8809-1cdbf3abfbd0" />
+
+
 ## License
 
 [MIT](LICENSE) (or specify your license here)
