@@ -365,6 +365,18 @@ Answer: [your final, concise answer based on the reasoning above]`;
                     let functionResult;
                     if (fname === 'webSearch' && args.query) {
                         functionResult = await ApiService.webSearch(args.query);
+                        // Enhance: fetch content for top 3 results
+                        for (let i = 0; i < Math.min(3, functionResult.length); i++) {
+                            const url = functionResult[i].url;
+                            try {
+                                let content = await ApiService.fetchUrlContent(url);
+                                // Truncate to 2000 chars for brevity
+                                if (content.length > 2000) content = content.slice(0, 2000) + '...';
+                                functionResult[i].content = content;
+                            } catch (err) {
+                                functionResult[i].content = `Error fetching content: ${err.message}`;
+                            }
+                        }
                     } else {
                         throw new Error(`Unknown function call: ${fname}`);
                     }

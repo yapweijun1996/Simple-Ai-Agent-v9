@@ -358,6 +358,63 @@ const ApiService = (function() {
         throw new Error('All proxies failed to fetch search results.');
     }
 
+    /**
+     * Fetches the content of a URL, retrying with CORS proxies if needed.
+     * @param {string} url - The URL to fetch.
+     * @returns {Promise<string>} - The fetched content as text.
+     */
+    async function fetchWithCorsProxy(url) {
+        // Try direct fetch first
+        try {
+            const response = await fetch(url);
+            if (response.ok) {
+                return await response.text();
+            } else {
+                throw new Error(`Direct fetch HTTP error ${response.status}`);
+            }
+        } catch (err) {
+            // Continue to proxy fallback
+        }
+        // Proxy fallback logic (same as webSearch)
+        const proxies = [
+            {
+                name: 'AllOrigins',
+                formatUrl: url => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+                parseResponse: async res => (await res.json()).contents
+            },
+            {
+                name: 'ThingProxy',
+                formatUrl: url => `https://thingproxy.freeboard.io/fetch/${url}`,
+                parseResponse: async res => res.text()
+            },
+            {
+                name: 'CorsProxyIO',
+                formatUrl: url => `https://corsproxy.io/?${url}`,
+                parseResponse: async res => res.text()
+            }
+        ];
+        for (const proxy of proxies) {
+            try {
+                const proxyUrl = proxy.formatUrl(url);
+                const response = await fetch(proxyUrl);
+                if (!response.ok) throw new Error(`Proxy ${proxy.name} HTTP error ${response.status}`);
+                return await proxy.parseResponse(response);
+            } catch (err) {
+                console.warn(`fetchWithCorsProxy proxy ${proxy.name} failed: ${err.message}`);
+            }
+        }
+        throw new Error('All proxies failed to fetch URL content.');
+    }
+
+    /**
+     * Public API to fetch URL content robustly (with CORS proxy fallback)
+     * @param {string} url - The URL to fetch
+     * @returns {Promise<string>} - The fetched content as text
+     */
+    async function fetchUrlContent(url) {
+        return await fetchWithCorsProxy(url);
+    }
+
     // Public API
     return {
         init,
@@ -366,6 +423,7 @@ const ApiService = (function() {
         createGeminiSession,
         streamGeminiRequest,
         getTokenUsage,
-        webSearch
+        webSearch,
+        fetchUrlContent
     };
 })(); 
