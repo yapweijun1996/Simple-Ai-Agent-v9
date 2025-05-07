@@ -43,40 +43,55 @@ const ToolsService = (function() {
     }
 
     /**
-     * Performs a DuckDuckGo HTML search via proxies.
+     * Performs a DuckDuckGo HTML search via proxies, paging to return up to `numResults` items (default 25).
      * @param {string} query
+     * @param {number} [numResults=25]
      * @returns {Promise<Array<{title:string,url:string,snippet:string}>>}
      */
-    async function webSearch(query) {
-      const ddgUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
-      for (const proxy of proxies) {
-        try {
-          const response = await fetch(proxy.formatUrl(ddgUrl));
-          if (!response.ok) throw new Error(`HTTP ${response.status}`);
-          const htmlString = await proxy.parseResponse(response);
-          const parser = new DOMParser();
-          const doc = parser.parseFromString(htmlString, 'text/html');
-          const container = doc.getElementById('links');
-          if (!container) throw new Error('No results container');
-          const items = container.querySelectorAll('div.result');
-          if (!items.length) throw new Error('No results');
+    async function webSearch(query, numResults = 25) {
+      const pageSize = 10;
+      const pages = Math.ceil(numResults / pageSize);
+      const combined = [];
+      for (let page = 0; page < pages; page++) {
+        const offset = page * pageSize;
+        // DuckDuckGo HTML interface uses 's' for start offset
+        const ddgUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}&s=${offset}`;
+        let pageResults = null;
+        for (const proxy of proxies) {
+          try {
+            const fetchOptions = proxy.options || {};
+            const response = await fetch(proxy.formatUrl(ddgUrl), fetchOptions);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const htmlString = await proxy.parseResponse(response);
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(htmlString, 'text/html');
+            const container = doc.getElementById('links');
+            if (!container) throw new Error('No results container');
+            const items = container.querySelectorAll('div.result');
+            if (!items.length) throw new Error('No results');
 
-          const results = [];
-          items.forEach(item => {
-            const anchor = item.querySelector('a.result__a');
-            if (!anchor) return;
-            const href = getFinalUrl(anchor.href);
-            const title = anchor.textContent.trim();
-            const snippetElem = item.querySelector('a.result__snippet, div.result__snippet');
-            const snippet = snippetElem ? snippetElem.textContent.trim() : '';
-            results.push({ title, url: href, snippet });
-          });
-          return results;
-        } catch (err) {
-          console.warn(`Proxy ${proxy.name} failed: ${err.message}`);
+            pageResults = [];
+            items.forEach(item => {
+              const anchor = item.querySelector('a.result__a');
+              if (!anchor) return;
+              const href = getFinalUrl(anchor.href);
+              const title = anchor.textContent.trim();
+              const snippetElem = item.querySelector('a.result__snippet, div.result__snippet');
+              const snippet = snippetElem ? snippetElem.textContent.trim() : '';
+              pageResults.push({ title, url: href, snippet });
+            });
+            break;
+          } catch (err) {
+            console.warn(`Proxy ${proxy.name} failed: ${err.message}`);
+          }
         }
+        if (!pageResults) {
+          throw new Error('All proxies failed for page ' + page);
+        }
+        combined.push(...pageResults);
+        if (combined.length >= numResults) break;
       }
-      throw new Error('All proxies failed');
+      return combined.slice(0, numResults);
     }
 
     /**
