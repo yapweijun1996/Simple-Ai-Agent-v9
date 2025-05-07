@@ -29,18 +29,23 @@ Begin Reasoning Now:
      * @param {Object} initialSettings - Initial settings for the chat
      */
     function init(initialSettings) {
-        // Reset and seed chatHistory with system tool descriptions
+        // Reset and seed chatHistory with system tool instructions
         chatHistory = [{
             role: 'system',
-            content: `You have two tools available:
-1. web_search(query) → returns JSON array of search results [{title, url, snippet}, …]
-2. read_url(url) → returns the text content of that URL
+            content: `You are an AI assistant with access to two tools for external information:
+1. web_search(query) → returns a JSON array of search results [{title, url, snippet}, …]
+2. read_url(url) → returns the text content of a web page
 
-When you decide to use a tool, respond only with valid JSON:
-{"tool":"web_search","arguments":{"query":"..."}}
+For any question requiring up-to-date facts, statistics, or external knowledge (e.g., currency rates, news), you MUST call web_search with the appropriate query.
+To read content from a specific URL, call read_url with that URL.
+
+When calling a tool, output EXACTLY a JSON object and nothing else, in this format:
+{"tool":"web_search","arguments":{"query":"your query"}}
 or
-{"tool":"read_url","arguments":{"url":"..."}}
-Then await the tool result to continue your reasoning.`
+{"tool":"read_url","arguments":{"url":"https://example.com"}}
+
+Wait for the tool result to be provided before continuing your explanation or final answer.
+After receiving the tool result, continue thinking step-by-step and then provide your answer.`
         }];
         if (initialSettings) {
             settings = { ...settings, ...initialSettings };
