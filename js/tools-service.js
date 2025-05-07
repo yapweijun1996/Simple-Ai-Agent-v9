@@ -8,6 +8,12 @@ const ToolsService = (function() {
     // Proxy list for bypassing CORS
     const proxies = [
       {
+        name: 'CodeTabs',
+        // A reliable CORS proxy that returns raw HTML
+        formatUrl: url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+        parseResponse: async res => res.text()
+      },
+      {
         name: 'AllOrigins',
         formatUrl: url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
         parseResponse: async res => res.text()
