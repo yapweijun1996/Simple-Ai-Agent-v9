@@ -242,6 +242,7 @@ const Utils = (function() {
 
     // Add CORS proxy list and proxy-based retry helper
     const corsProxies = [
+        '',
         'https://corsproxy.io/?',
         'https://cors.eu.org/',
         'https://thingproxy.freeboard.io/fetch/?url=',
@@ -255,8 +256,7 @@ const Utils = (function() {
         'https://cors.ironproxy.xyz/',
         'https://norobe-cors-anywhere.herokuapp.com/',
         'https://corsproxy.github.io/?url=',
-        'https://cors-proxy.elfsight.com/',
-        ''
+        'https://cors-proxy.elfsight.com/'
     ];
 
     async function fetchWithProxyRetry(resource, options = {}, proxies = corsProxies, retries = proxies.length, retryDelay = 1000, timeout = 10000) {
