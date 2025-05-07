@@ -47,14 +47,20 @@ const ApiService = (function() {
      */
     function init(password) {
         if (!password) return false;
-        
+        let key;
         try {
-            apiKey = Utils.decrypt(encryptedOpenAIKey, password);
-            return true;
+            key = Utils.decrypt(encryptedOpenAIKey, password);
         } catch (err) {
             console.error('Failed to decrypt API key:', err);
             return false;
         }
+        // Validate that the decrypted key appears valid (OpenAI keys start with 'sk-')
+        if (typeof key !== 'string' || !key.startsWith('sk-')) {
+            console.error('Decrypted API key invalid:', key);
+            return false;
+        }
+        apiKey = key;
+        return true;
     }
 
     /**
