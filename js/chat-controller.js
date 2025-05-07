@@ -9,7 +9,7 @@ const ChatController = (function() {
     // Private state
     let chatHistory = [];
     let totalTokens = 0;
-    let settings = { streaming: false, enableCoT: false, showThinking: true, hasOpenAIKey: false };
+    let settings = { streaming: false, enableCoT: false, showThinking: true };
     let isThinking = false;
     let lastThinkingContent = '';
     let lastAnswerContent = '';
@@ -92,26 +92,6 @@ After receiving the tool result, continue thinking step-by-step and then provide
         return `${message}\n\nI'd like you to use Chain of Thought reasoning. Please think step-by-step before providing your final answer. Format your response like this:
 Thinking: [detailed reasoning process, exploring different angles and considerations]
 Answer: [your final, concise answer based on the reasoning above]`;
-    }
-
-    /**
-     * Attempts to find and parse a JSON tool call in text, even if wrapped in code fences.
-     * @param {string} text
-     * @returns {Object|null}
-     */
-    function extractToolCallFromText(text) {
-        // Strip code fences
-        let jsonString = text;
-        const fenceMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-        if (fenceMatch) jsonString = fenceMatch[1];
-        // Extract the first JSON object
-        const braceMatch = jsonString.match(/\{[\s\S]*?\}/);
-        if (braceMatch) jsonString = braceMatch[0];
-        try {
-            return JSON.parse(jsonString.trim());
-        } catch (err) {
-            return null;
-        }
     }
 
     /**
@@ -335,8 +315,11 @@ Answer: [your final, concise answer based on the reasoning above]`;
                     }
                 );
                 
-                // Intercept JSON tool call (handles code fences)
-                const toolCall = extractToolCallFromText(fullReply);
+                // Intercept JSON tool call in streaming mode
+                let toolCall = null;
+                try {
+                    toolCall = JSON.parse(fullReply.trim());
+                } catch (e) {}
                 if (toolCall && toolCall.tool && toolCall.arguments) {
                     await processToolCall(toolCall);
                     return;
@@ -393,8 +376,11 @@ Answer: [your final, concise answer based on the reasoning above]`;
                 const reply = result.choices[0].message.content;
                 console.log("GPT non-streaming reply:", reply);
 
-                // Intercept JSON tool call (handles code fences)
-                const toolCall = extractToolCallFromText(reply);
+                // Intercept tool call JSON
+                let toolCall = null;
+                try {
+                    toolCall = JSON.parse(reply);
+                } catch (e) {}
                 if (toolCall && toolCall.tool && toolCall.arguments) {
                     await processToolCall(toolCall);
                     return;
@@ -470,8 +456,11 @@ Answer: [your final, concise answer based on the reasoning above]`;
                     }
                 );
                 
-                // Intercept JSON tool call (handles code fences)
-                const toolCall = extractToolCallFromText(fullReply);
+                // Intercept JSON tool call in streaming mode
+                let toolCall = null;
+                try {
+                    toolCall = JSON.parse(fullReply.trim());
+                } catch (e) {}
                 if (toolCall && toolCall.tool && toolCall.arguments) {
                     await processToolCall(toolCall);
                     return;
@@ -529,8 +518,11 @@ Answer: [your final, concise answer based on the reasoning above]`;
                     textResponse = candidate.content.text;
                 }
                 
-                // Intercept JSON tool call (handles code fences)
-                const toolCall = extractToolCallFromText(textResponse);
+                // Intercept JSON tool call in non-streaming mode
+                let toolCall = null;
+                try {
+                    toolCall = JSON.parse(textResponse.trim());
+                } catch (e) {}
                 if (toolCall && toolCall.tool && toolCall.arguments) {
                     await processToolCall(toolCall);
                     return;
@@ -572,24 +564,19 @@ Answer: [your final, concise answer based on the reasoning above]`;
             result = await ToolsService.webSearch(args.query);
             // Format search results
             const items = result || [];
-            // Render HTML for UI
             const htmlItems = items.map(r =>
                 `<li><a href="${r.url}" target="_blank" rel="noopener noreferrer">${r.title}</a><br><small>${r.url}</small><p>${Utils.escapeHtml(r.snippet)}</p></li>`
             ).join('');
             const html = `<div class="tool-result" role="group" aria-label="Search results for ${args.query}"><strong>Search results for “${args.query}” (${items.length}):</strong><ul>${htmlItems}</ul></div>`;
             UIController.addHtmlMessage('ai', html);
-            // Push plain-text results for the model
-            const plainText = items.map(r => `${r.title}\n${r.snippet}\n${r.url}`).join("\n\n");
-            chatHistory.push({ role: 'assistant', content: plainText });
+            chatHistory.push({ role: 'assistant', content: html });
         } else if (tool === 'read_url') {
             UIController.showStatus(`Reading content from ${args.url}...`);
             result = await ToolsService.readUrl(args.url);
             const snippet = String(result).slice(0, 500);
             const html = `<div class="tool-result" role="group" aria-label="Read content from ${args.url}"><strong>Read from:</strong> <a href="${args.url}" target="_blank" rel="noopener noreferrer">${args.url}</a><p>${Utils.escapeHtml(snippet)}${String(result).length > 500 ? '...' : ''}</p></div>`;
             UIController.addHtmlMessage('ai', html);
-            // Push plain-text snippet for the model
-            const plainText = snippet + (String(result).length > 500 ? '...' : '');
-            chatHistory.push({ role: 'assistant', content: plainText });
+            chatHistory.push({ role: 'assistant', content: html });
         } else if (tool === 'instant_answer') {
             UIController.showStatus(`Retrieving instant answer for "${args.query}"...`);
             result = await ToolsService.instantAnswer(args.query);
