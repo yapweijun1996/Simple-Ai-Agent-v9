@@ -301,14 +301,19 @@ const ApiService = (function() {
         const ddgUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
         const proxies = [
             {
-                name: 'AllOriginsRaw',
-                formatUrl: url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-                parseResponse: async res => res.text()
-            },
-            {
                 name: 'AllOrigins',
                 formatUrl: url => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
                 parseResponse: async res => (await res.json()).contents
+            },
+            {
+                name: 'CodeTabs',
+                formatUrl: url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+                parseResponse: async res => res.text()
+            },
+            {
+                name: 'CORSBridged',
+                formatUrl: url => `https://cors.bridged.cc/${url}`,
+                parseResponse: async res => res.text()
             },
             {
                 name: 'ThingProxy',
@@ -318,11 +323,6 @@ const ApiService = (function() {
             {
                 name: 'CorsProxyIO',
                 formatUrl: url => `https://corsproxy.io/?${url}`,
-                parseResponse: async res => res.text()
-            },
-            {
-                name: 'CodeTabs',
-                formatUrl: url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
                 parseResponse: async res => res.text()
             }
         ];
@@ -388,14 +388,19 @@ const ApiService = (function() {
         // Proxy fallback logic (same as webSearch)
         const proxies = [
             {
-                name: 'AllOriginsRaw',
-                formatUrl: url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-                parseResponse: async res => res.text()
-            },
-            {
                 name: 'AllOrigins',
                 formatUrl: url => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
                 parseResponse: async res => (await res.json()).contents
+            },
+            {
+                name: 'CodeTabs',
+                formatUrl: url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+                parseResponse: async res => res.text()
+            },
+            {
+                name: 'CORSBridged',
+                formatUrl: url => `https://cors.bridged.cc/${url}`,
+                parseResponse: async res => res.text()
             },
             {
                 name: 'ThingProxy',
@@ -405,11 +410,6 @@ const ApiService = (function() {
             {
                 name: 'CorsProxyIO',
                 formatUrl: url => `https://corsproxy.io/?${url}`,
-                parseResponse: async res => res.text()
-            },
-            {
-                name: 'CodeTabs',
-                formatUrl: url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
                 parseResponse: async res => res.text()
             }
         ];
