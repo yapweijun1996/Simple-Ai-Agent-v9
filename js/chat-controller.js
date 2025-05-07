@@ -248,7 +248,27 @@ Answer: [your final, concise answer based on the reasoning above]`;
                     : 'gpt-4.1-mini';
                 chatHistory.push({ role: 'user', content: enhancedMessage });
                 console.log(`Routing through OpenAI model ${modelForCall}:`, enhancedMessage);
-                await handleOpenAIMessage(modelForCall, enhancedMessage, functionOptions);
+                try {
+                    await handleOpenAIMessage(modelForCall, enhancedMessage, functionOptions);
+                } catch (err) {
+                    // Fallback to Gemini if OpenAI auth fails (e.g., invalid password/API key)
+                    const msg = err.message || '';
+                    if (msg.includes('API error 401') || msg.toLowerCase().includes('invalid password')) {
+                        console.warn('OpenAI auth failed, falling back to Gemini with web search');
+                        // Temporarily enable CoT to force web search in Gemini path
+                        const prevCoT = settings.enableCoT;
+                        settings.enableCoT = true;
+                        // Ensure chatHistory has user message for Gemini
+                        if (chatHistory.length === 0) {
+                            chatHistory.push({ role: 'user', content: '' });
+                        }
+                        await handleGeminiMessage(selectedModel, enhancedMessage);
+                        // Restore CoT setting
+                        settings.enableCoT = prevCoT;
+                    } else {
+                        throw err;
+                    }
+                }
             } else {
                 // Use Gemini path for plain interactions
                 if (chatHistory.length === 0) {
@@ -470,7 +490,53 @@ Answer: [your final, concise answer based on the reasoning above]`;
         // Add current message to chat history
         chatHistory.push({ role: 'user', content: message });
         
-        if (settings.streaming) {
+        // Determine if streaming should be used (disable when performing webSearch)
+        const allowStreaming = settings.streaming && !settings.enableCoT;
+        // If CoT is enabled, perform web search flow before asking Gemini
+        let aiMsgElementForFunction = null;
+        let functionResult = null;
+        if (settings.enableCoT) {
+            aiMsgElementForFunction = UIController.createEmptyAIMessage();
+            UIController.updateStatus(aiMsgElementForFunction, '🔍 Searching web...');
+            // Perform the search
+            try {
+                functionResult = await ApiService.webSearch(message);
+            } catch (err) {
+                UIController.updateMessageContent(aiMsgElementForFunction, 'Error: ' + err.message);
+                throw err;
+            }
+            // Fetch content for top results
+            UIController.updateStatus(aiMsgElementForFunction, '📥 Fetching content...');
+            for (let i = 0; i < Math.min(3, functionResult.length); i++) {
+                const entry = functionResult[i];
+                try {
+                    UIController.updateStatus(aiMsgElementForFunction, `📥 Fetching (${i+1}/${Math.min(3, functionResult.length)})`);
+                    const { content, source } = await ApiService.fetchUrlContent(entry.url);
+                    entry.content = content.length > 2000 ? content.slice(0, 2000) + '...' : content;
+                    entry.source = source;
+                } catch (err) {
+                    entry.content = `Error fetching content: ${err.message}`;
+                    entry.source = 'error';
+                }
+            }
+            // Summarize fetched content
+            UIController.updateStatus(aiMsgElementForFunction, '📝 Summarizing content...');
+            for (let i = 0; i < Math.min(3, functionResult.length); i++) {
+                const entry = functionResult[i];
+                try {
+                    entry.summary = await ApiService.summarizeText(entry.content, 3);
+                } catch (err) {
+                    entry.summary = `Error summarizing content: ${err.message}`;
+                }
+            }
+            // Ready to think
+            UIController.updateStatus(aiMsgElementForFunction, '🤔 Thinking...');
+            // Inject function messages so Gemini sees the search results
+            chatHistory.push({ role: 'assistant', name: 'webSearch', content: JSON.stringify({ query: message }) });
+            chatHistory.push({ role: 'function', name: 'webSearch', content: JSON.stringify(functionResult) });
+        }
+        
+        if (allowStreaming) {
             // Streaming approach
             const aiMsgElement = UIController.createEmptyAIMessage();
             let streamedResponse = '';
@@ -539,45 +605,44 @@ Answer: [your final, concise answer based on the reasoning above]`;
                 isThinking = false;
             }
         } else {
-            // Non-streaming approach
+            // Non-streaming approach (with or without CoT)
             try {
                 const session = ApiService.createGeminiSession(model);
                 const result = await session.sendMessage(message, chatHistory);
-                
                 // Update token usage if available
                 if (result.usageMetadata && typeof result.usageMetadata.totalTokenCount === 'number') {
                     totalTokens += result.usageMetadata.totalTokenCount;
                 }
-                
-                // Process response
+                // Extract text response
                 const candidate = result.candidates[0];
                 let textResponse = '';
-                
                 if (candidate.content.parts) {
                     textResponse = candidate.content.parts.map(p => p.text).join(' ');
                 } else if (candidate.content.text) {
                     textResponse = candidate.content.text;
                 }
-                
+                // Process response (CoT formatting if enabled)
+                let displayText;
                 if (settings.enableCoT) {
                     const processed = processCoTResponse(textResponse);
-                    
-                    // Add thinking to debug console if available
-                    if (processed.thinking) {
-                        console.log('AI Thinking:', processed.thinking);
-                    }
-                    
-                    // Add the full response to chat history
-                    chatHistory.push({ role: 'assistant', content: textResponse });
-                    
-                    // Show appropriate content in the UI based on settings
-                    const displayText = formatResponseForDisplay(processed);
-                    UIController.addMessage('ai', displayText);
+                    if (processed.thinking) console.log('AI Thinking:', processed.thinking);
+                    displayText = formatResponseForDisplay(processed);
                 } else {
-                    chatHistory.push({ role: 'assistant', content: textResponse });
-                    UIController.addMessage('ai', textResponse);
+                    displayText = textResponse;
                 }
+                // Render to UI, reusing placeholder if webSearch was used
+                if (aiMsgElementForFunction) {
+                    UIController.updateMessageContent(aiMsgElementForFunction, displayText);
+                    UIController.addSources(aiMsgElementForFunction, functionResult.map(r => ({ url: r.url, source: r.source })));
+                } else {
+                    UIController.addMessage('ai', displayText);
+                }
+                // Add final answer to history
+                chatHistory.push({ role: 'assistant', content: textResponse });
             } catch (err) {
+                if (aiMsgElementForFunction) {
+                    UIController.updateMessageContent(aiMsgElementForFunction, 'Error: ' + err.message);
+                }
                 throw err;
             }
         }
