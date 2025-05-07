@@ -447,6 +447,26 @@ const ApiService = (function() {
         return await fetchWithCorsProxy(url);
     }
 
+    /**
+     * Summarizes text into bullet points using AI.
+     * @param {string} text - The text to summarize.
+     * @param {number} bulletCount - Number of bullet points.
+     * @returns {Promise<string>} - The summary as bullet points.
+     */
+    async function summarizeText(text, bulletCount = 3) {
+        // Prepare system and user messages for summarization
+        const systemPrompt = `Summarize the following text in ${bulletCount} concise bullet points:`;
+        const messages = [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: text }
+        ];
+        // Use default model for summarization
+        const model = 'gpt-4.1-mini';
+        const response = await sendOpenAIRequest(model, messages);
+        const summary = response.choices?.[0]?.message?.content || '';
+        return summary.trim();
+    }
+
     // Public API
     return {
         init,
@@ -456,6 +476,7 @@ const ApiService = (function() {
         streamGeminiRequest,
         getTokenUsage,
         webSearch,
-        fetchUrlContent
+        fetchUrlContent,
+        summarizeText
     };
 })(); 

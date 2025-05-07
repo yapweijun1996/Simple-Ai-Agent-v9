@@ -386,7 +386,17 @@ Answer: [your final, concise answer based on the reasoning above]`;
                                 entry.source = 'error';
                             }
                         }
-                        // After fetching content, reset status to thinking
+                        // After fetching content, summarize each entry
+                        UIController.updateStatus(aiMsgElement, '📝 Summarizing content...');
+                        for (let i = 0; i < Math.min(3, functionResult.length); i++) {
+                            const entry = functionResult[i];
+                            try {
+                                entry.summary = await ApiService.summarizeText(entry.content, 3);
+                            } catch (err) {
+                                entry.summary = `Error summarizing content: ${err.message}`;
+                            }
+                        }
+                        // After summarization, reset status to thinking
                         UIController.updateStatus(aiMsgElement, '🤔 Thinking...');
                     } else {
                         throw new Error(`Unknown function call: ${fname}`);
