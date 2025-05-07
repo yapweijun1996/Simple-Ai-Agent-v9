@@ -1,4 +1,5 @@
 /**
+ * ./js/chat-controller.js
  * Chat Controller Module - Manages chat history and message handling
  * Coordinates between UI and API service for sending/receiving messages
  */

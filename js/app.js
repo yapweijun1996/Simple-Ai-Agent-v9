@@ -1,4 +1,5 @@
 /**
+ * ./js/app.js
  * Main Application Module - Entry point for the application
  * Coordinates initialization of all other modules
  */

@@ -1,4 +1,5 @@
 /**
+ * ./js/api-service.js
  * API Service Module - Handles all communication with AI APIs
  * Interfaces with OpenAI and Gemini APIs and manages API keys
  */

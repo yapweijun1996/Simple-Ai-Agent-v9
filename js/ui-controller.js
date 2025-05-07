@@ -1,4 +1,5 @@
 /**
+ * ./js/ui-controller.js
  * UI Controller Module - Manages UI elements and interactions
  * Handles chat display, inputs, and visual elements
  */

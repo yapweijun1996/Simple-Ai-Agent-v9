@@ -1,4 +1,5 @@
 /**
+ * ./js/settings-controller.js
  * Settings Controller Module - Manages application settings
  * Handles settings modal and persistence of user preferences
  */
