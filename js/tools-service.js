@@ -9,8 +9,8 @@ const ToolsService = (function() {
     const proxies = [
       {
         name: 'AllOrigins',
-        formatUrl: url => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
-        parseResponse: async res => (await res.json()).contents
+        formatUrl: url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+        parseResponse: async res => res.text()
       },
       {
         name: 'ThingProxy',
