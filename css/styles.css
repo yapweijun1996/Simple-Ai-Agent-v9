@@ -430,4 +430,59 @@ html, body {
         margin-bottom: var(--space-sm);
         width: 100%;
     }
+}
+
+/* -- Source Links under AI Messages -------------------------------- */
+.chat-app__message-sources {
+    margin-top: var(--space-xs);
+    font-size: 0.8rem;
+    color: var(--text-light-color);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+}
+
+.source-item {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    word-break: break-all;
+}
+
+.source-item a {
+    color: var(--primary-color);
+    text-decoration: none;
+    margin-right: var(--space-sm);
+}
+.source-item a:hover {
+    text-decoration: underline;
+}
+
+.proxy-name {
+    background: var(--container-bg);
+    border: 1px solid var(--border-color);
+    padding: 0 var(--space-xs);
+    border-radius: var(--radius-sm);
+    font-size: 0.7rem;
+    color: var(--text-light-color);
+}
+
+/* Mobile adjustments */
+@media (max-width: 480px) {
+    .chat-app__message-sources {
+        font-size: 0.75rem;
+    }
+    .proxy-name {
+        font-size: 0.6rem;
+        padding: 0 var(--space-xs);
+    }
+}
+
+@media (max-width: 360px) {
+    .chat-app__message-content {
+        font-size: 0.9rem;
+    }
+    .source-item a {
+        font-size: 0.75rem;
+    }
 } 

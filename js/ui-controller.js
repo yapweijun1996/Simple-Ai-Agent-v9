@@ -282,6 +282,34 @@ const UIController = (function() {
         return messageElement;
     }
 
+    /**
+     * Adds data source links (URL and proxy used) under an AI message element
+     * @param {Element} messageElement - The AI message element returned by addMessage
+     * @param {Array<{url: string, source: string}>} sources - List of sources with URL and proxy name
+     */
+    function addSources(messageElement, sources) {
+        if (!messageElement || !Array.isArray(sources) || sources.length === 0) return;
+        const container = messageElement.querySelector('.chat-app__message-sources');
+        if (!container) return;
+        // Clear existing
+        container.innerHTML = '';
+        sources.forEach(src => {
+            const item = document.createElement('div');
+            item.className = 'source-item';
+            const link = document.createElement('a');
+            link.href = src.url;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            link.textContent = src.url;
+            const badge = document.createElement('span');
+            badge.className = 'proxy-name';
+            badge.textContent = src.source;
+            item.appendChild(link);
+            item.appendChild(badge);
+            container.appendChild(item);
+        });
+    }
+
     // Public API
     return {
         init,
@@ -289,6 +317,7 @@ const UIController = (function() {
         addMessage,
         clearChatWindow,
         updateMessageContent,
+        addSources,
         getUserInput,
         clearUserInput,
         createEmptyAIMessage
