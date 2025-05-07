@@ -14,6 +14,21 @@ const ChatController = (function() {
     let lastThinkingContent = '';
     let lastAnswerContent = '';
 
+    // Define OpenAI function schema for auto web search
+    const functionsSchema = [
+      {
+        name: 'webSearch',
+        description: 'Performs a web search using DuckDuckGo via proxy',
+        parameters: {
+          type: 'object',
+          properties: {
+            query: { type: 'string', description: 'Search query' }
+          },
+          required: ['query']
+        }
+      }
+    ];
+
     const cotPreamble = `**Chain of Thought Instructions:**
 1.  **Understand:** Briefly rephrase the core problem or question.
 2.  **Deconstruct:** Break the problem down into smaller, logical steps needed to reach the solution.
@@ -221,10 +236,11 @@ Answer: [your final, concise answer based on the reasoning above]`;
         
         try {
             if (selectedModel.startsWith('gpt')) {
-                // For OpenAI, add enhanced message to chat history before sending to include the CoT prompt.
                 chatHistory.push({ role: 'user', content: enhancedMessage });
                 console.log("Sent enhanced message to GPT:", enhancedMessage);
-                await handleOpenAIMessage(selectedModel, enhancedMessage);
+                // Include function schema for auto web search when CoT is enabled
+                const options = settings.enableCoT ? { functions: functionsSchema, function_call: 'auto' } : {};
+                await handleOpenAIMessage(selectedModel, enhancedMessage, options);
             } else {
                 // For Gemini, ensure chat history starts with user message if empty
                 if (chatHistory.length === 0) {
@@ -246,79 +262,87 @@ Answer: [your final, concise answer based on the reasoning above]`;
      * @param {string} model - The OpenAI model to use
      * @param {string} message - The user message
      */
-    async function handleOpenAIMessage(model, message) {
+    async function handleOpenAIMessage(model, message, options = {}) {
         if (settings.streaming) {
-            // Streaming approach
-            const aiMsgElement = UIController.createEmptyAIMessage();
-            let streamedResponse = '';
-            
-            try {
-                // Start thinking indicator if CoT is enabled
-                if (settings.enableCoT) {
-                    isThinking = true;
-                    UIController.updateMessageContent(aiMsgElement, '🤔 Thinking...');
-                }
+            // If function calling is requested, disable streaming and fallback to non-streaming
+            if (options.functions) {
+                console.warn('Streaming disabled when using function calling, switching to non-streaming mode.');
+            } else {
+                // Streaming approach
+                const aiMsgElement = UIController.createEmptyAIMessage();
+                let streamedResponse = '';
                 
-                // Process streaming response
-                const fullReply = await ApiService.streamOpenAIRequest(
-                    model, 
-                    chatHistory,
-                    (chunk, fullText) => {
-                        streamedResponse = fullText;
-                        
-                        if (settings.enableCoT) {
-                            // Process the streamed response for CoT
-                            const processed = processPartialCoTResponse(fullText);
+                try {
+                    // Start thinking indicator if CoT is enabled
+                    if (settings.enableCoT) {
+                        isThinking = true;
+                        UIController.updateMessageContent(aiMsgElement, '🤔 Thinking...');
+                    }
+                    
+                    // Process streaming response
+                    const fullReply = await ApiService.streamOpenAIRequest(
+                        model, 
+                        chatHistory,
+                        (chunk, fullText) => {
+                            streamedResponse = fullText;
                             
-                            // Only show "Thinking..." if we're still waiting
-                            if (isThinking && fullText.includes('Answer:')) {
-                                isThinking = false;
+                            if (settings.enableCoT) {
+                                // Process the streamed response for CoT
+                                const processed = processPartialCoTResponse(fullText);
+                                
+                                // Only show "Thinking..." if we're still waiting
+                                if (isThinking && fullText.includes('Answer:')) {
+                                    isThinking = false;
+                                }
+                                
+                                // Format according to current stage and settings
+                                const displayText = formatResponseForDisplay(processed);
+                                UIController.updateMessageContent(aiMsgElement, displayText);
+                            } else {
+                                UIController.updateMessageContent(aiMsgElement, fullText);
                             }
-                            
-                            // Format according to current stage and settings
-                            const displayText = formatResponseForDisplay(processed);
-                            UIController.updateMessageContent(aiMsgElement, displayText);
-                        } else {
-                            UIController.updateMessageContent(aiMsgElement, fullText);
                         }
+                    );
+                    
+                    // Process response for CoT if enabled
+                    if (settings.enableCoT) {
+                        const processed = processCoTResponse(fullReply);
+                        
+                        // Add thinking to debug console if available
+                        if (processed.thinking) {
+                            console.log('AI Thinking:', processed.thinking);
+                        }
+                        
+                        // Update UI with appropriate content based on settings
+                        const displayText = formatResponseForDisplay(processed);
+                        UIController.updateMessageContent(aiMsgElement, displayText);
+                        
+                        // Add full response to chat history
+                        chatHistory.push({ role: 'assistant', content: fullReply });
+                    } else {
+                        // Add to chat history after completed
+                        chatHistory.push({ role: 'assistant', content: fullReply });
                     }
-                );
-                
-                // Process response for CoT if enabled
-                if (settings.enableCoT) {
-                    const processed = processCoTResponse(fullReply);
                     
-                    // Add thinking to debug console if available
-                    if (processed.thinking) {
-                        console.log('AI Thinking:', processed.thinking);
+                    // Get token usage
+                    const tokenCount = await ApiService.getTokenUsage(model, chatHistory);
+                    if (tokenCount) {
+                        totalTokens += tokenCount;
                     }
-                    
-                    // Update UI with appropriate content based on settings
-                    const displayText = formatResponseForDisplay(processed);
-                    UIController.updateMessageContent(aiMsgElement, displayText);
-                    
-                    // Add full response to chat history
-                    chatHistory.push({ role: 'assistant', content: fullReply });
-                } else {
-                    // Add to chat history after completed
-                    chatHistory.push({ role: 'assistant', content: fullReply });
+                } catch (err) {
+                    UIController.updateMessageContent(aiMsgElement, 'Error: ' + err.message);
+                    throw err;
+                } finally {
+                    isThinking = false;
                 }
-                
-                // Get token usage
-                const tokenCount = await ApiService.getTokenUsage(model, chatHistory);
-                if (tokenCount) {
-                    totalTokens += tokenCount;
-                }
-            } catch (err) {
-                UIController.updateMessageContent(aiMsgElement, 'Error: ' + err.message);
-                throw err;
-            } finally {
-                isThinking = false;
             }
-        } else {
+        }
+        // Non-streaming approach (or when function calling is used)
+        if (!settings.streaming || options.functions) {
             // Non-streaming approach
             try {
-                const result = await ApiService.sendOpenAIRequest(model, chatHistory);
+                // Include function options if provided
+                const result = await ApiService.sendOpenAIRequest(model, chatHistory, options);
                 
                 if (result.error) {
                     throw new Error(result.error.message);
@@ -330,23 +354,54 @@ Answer: [your final, concise answer based on the reasoning above]`;
                 }
                 
                 // Process response
-                const reply = result.choices[0].message.content;
+                const messageObj = result.choices[0].message;
+                console.log("GPT non-streaming messageObj:", messageObj);
+
+                // Handle function call if triggered
+                if (messageObj.function_call) {
+                    const fname = messageObj.function_call.name;
+                    const args = JSON.parse(messageObj.function_call.arguments || '{}');
+                    console.log(`Function call requested: ${fname}`, args);
+                    let functionResult;
+                    if (fname === 'webSearch' && args.query) {
+                        functionResult = await ApiService.webSearch(args.query);
+                    } else {
+                        throw new Error(`Unknown function call: ${fname}`);
+                    }
+                    // Add assistant function call message to history
+                    chatHistory.push({ role: 'assistant', name: fname, content: messageObj.function_call.arguments });
+                    // Add function response to history
+                    chatHistory.push({ role: 'function', name: fname, content: JSON.stringify(functionResult) });
+                    
+                    // Call model again for final answer
+                    const followup = await ApiService.sendOpenAIRequest(model, chatHistory);
+                    const finalMsg = followup.choices[0].message.content;
+                    console.log("GPT followup reply:", finalMsg);
+                    
+                    // Process CoT if enabled
+                    if (settings.enableCoT) {
+                        const processed = processCoTResponse(finalMsg);
+                        if (processed.thinking) console.log('AI Thinking:', processed.thinking);
+                        const displayText = formatResponseForDisplay(processed);
+                        UIController.addMessage('ai', displayText);
+                        chatHistory.push({ role: 'assistant', content: finalMsg });
+                    } else {
+                        UIController.addMessage('ai', finalMsg);
+                        chatHistory.push({ role: 'assistant', content: finalMsg });
+                    }
+                    
+                    return;
+                }
+                // Normal response handling
+                const reply = messageObj.content;
                 console.log("GPT non-streaming reply:", reply);
                 
                 if (settings.enableCoT) {
                     const processed = processCoTResponse(reply);
-                    
-                    // Add thinking to debug console if available
-                    if (processed.thinking) {
-                        console.log('AI Thinking:', processed.thinking);
-                    }
-                    
-                    // Add the full response to chat history
-                    chatHistory.push({ role: 'assistant', content: reply });
-                    
-                    // Show appropriate content in the UI based on settings
+                    if (processed.thinking) console.log('AI Thinking:', processed.thinking);
                     const displayText = formatResponseForDisplay(processed);
                     UIController.addMessage('ai', displayText);
+                    chatHistory.push({ role: 'assistant', content: reply });
                 } else {
                     chatHistory.push({ role: 'assistant', content: reply });
                     UIController.addMessage('ai', reply);

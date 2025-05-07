@@ -61,10 +61,11 @@ const ApiService = (function() {
      * Sends a non-streaming request to OpenAI API
      * @param {string} model - The model to use
      * @param {Array} messages - The message history
+     * @param {object} [options] - Additional OpenAI API options like functions and function_call
      * @returns {Promise<Object>} - The API response
      */
-    async function sendOpenAIRequest(model, messages) {
-        const payload = { model, messages };
+    async function sendOpenAIRequest(model, messages, options = {}) {
+        const payload = { model, messages, ...options };
         const response = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
             headers: { 
@@ -87,16 +88,18 @@ const ApiService = (function() {
      * @param {string} model - The model to use
      * @param {Array} messages - The message history
      * @param {Function} onChunk - Callback for each chunk of data
+     * @param {object} [options] - Additional OpenAI API options like functions and function_call
      * @returns {Promise<string>} - The full response text
      */
-    async function streamOpenAIRequest(model, messages, onChunk) {
+    async function streamOpenAIRequest(model, messages, onChunk, options = {}) {
+        const payload = { model, messages, stream: true, ...options };
         const response = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json', 
                 'Authorization': 'Bearer ' + apiKey 
             },
-            body: JSON.stringify({ model, messages, stream: true })
+            body: JSON.stringify(payload)
         });
         
         if (!response.ok) {
@@ -289,6 +292,72 @@ const ApiService = (function() {
         }
     }
 
+    /**
+     * Performs a web search using DuckDuckGo via proxy to bypass CORS.
+     * @param {string} query - The search query.
+     * @returns {Promise<Array<{title: string, url: string, snippet: string}>>}
+     */
+    async function webSearch(query) {
+        const ddgUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
+        const proxies = [
+            {
+                name: 'AllOrigins',
+                formatUrl: url => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+                parseResponse: async res => (await res.json()).contents
+            },
+            {
+                name: 'ThingProxy',
+                formatUrl: url => `https://thingproxy.freeboard.io/fetch/${url}`,
+                parseResponse: async res => res.text()
+            },
+            {
+                name: 'CorsProxyIO',
+                formatUrl: url => `https://corsproxy.io/?${url}`,
+                parseResponse: async res => res.text()
+            }
+        ];
+
+        function getFinalUrl(url) {
+            try {
+                const parsed = new URL(url);
+                if (parsed.pathname === '/l/' && parsed.searchParams.has('uddg')) {
+                    return decodeURIComponent(parsed.searchParams.get('uddg'));
+                }
+            } catch {}
+            return url;
+        }
+
+        for (const proxy of proxies) {
+            try {
+                const proxyUrl = proxy.formatUrl(ddgUrl);
+                const response = await fetch(proxyUrl);
+                if (!response.ok) throw new Error(`Proxy ${proxy.name} HTTP error ${response.status}`);
+                const htmlString = await proxy.parseResponse(response);
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(htmlString, 'text/html');
+                const container = doc.getElementById('links');
+                if (!container) throw new Error('No results container found');
+                const items = container.querySelectorAll('div.result');
+                if (!items.length) throw new Error('No search results found');
+                const results = [];
+                items.forEach(item => {
+                    const titleAnchor = item.querySelector('a.result__a');
+                    const snippetElem = item.querySelector('a.result__snippet, div.result__snippet');
+                    if (!titleAnchor) return;
+                    const rawHref = titleAnchor.href;
+                    const url = getFinalUrl(rawHref);
+                    const title = titleAnchor.textContent.trim();
+                    const snippet = snippetElem ? snippetElem.textContent.trim() : '';
+                    results.push({ title, url, snippet });
+                });
+                return results;
+            } catch (err) {
+                console.warn(`webSearch proxy ${proxy.name} failed: ${err.message}`);
+            }
+        }
+        throw new Error('All proxies failed to fetch search results.');
+    }
+
     // Public API
     return {
         init,
@@ -296,6 +365,7 @@ const ApiService = (function() {
         streamOpenAIRequest,
         createGeminiSession,
         streamGeminiRequest,
-        getTokenUsage
+        getTokenUsage,
+        webSearch
     };
 })(); 
